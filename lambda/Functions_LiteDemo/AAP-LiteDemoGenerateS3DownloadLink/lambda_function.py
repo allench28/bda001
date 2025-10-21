@@ -7,12 +7,6 @@ from botocore.client import Config
 
 LITE_DEMO_BUCKET = os.environ.get('LITE_DEMO_BUCKET')
 
-S3_CLIENT = boto3.client(
-    's3',
-    region_name='ap-southeast-5',
-    endpoint_url='https://s3.ap-southeast-5.amazonaws.com'
-)
-
 logger = Logger()
 tracer = Tracer()
 
@@ -53,6 +47,7 @@ def generate_presigned_url(bucket_name, s3_path, expiration=3600):
         decoded_key = urllib.parse.unquote(s3_path)
         filename_part = decoded_key.split('/')[-1]
 
+        S3_CLIENT = boto3.client('s3', config=Config(signature_version='s3v4', s3={'addressing_style': 'virtual'}))
         response = S3_CLIENT.generate_presigned_url(
             'get_object',
             Params={

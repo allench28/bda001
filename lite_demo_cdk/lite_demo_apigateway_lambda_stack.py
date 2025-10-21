@@ -8,7 +8,6 @@ from aws_cdk import (
     Tags
 )
 import os
-from datetime import datetime
 from constructs import Construct
 from .environment import *
 
@@ -23,6 +22,10 @@ Functions:
 1. LiteDemoGenerateS3UploadLink
    POST /lite-demo/generate-upload-link
    OPTIONS /lite-demo/generate-upload-link
+
+2. LiteDemoGenerateS3DownloadLink
+   GET /lite-demo/generate-download-link
+   OPTIONS /lite-demo/generate-download-link
 """
 
 class LiteDemoApiGatewayLambdaStack(Stack):
@@ -36,11 +39,6 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
         )
 
-        # GenericLayer = lambda_.LayerVersion.from_layer_version_arn(
-        #     self, 'GenericLayer', 
-        #     ssm.StringParameter.from_string_parameter_name(self, 'GenericLayerArn', f'{PROJECT_NAME}' + '-GenericLayerArn').string_value
-        # )
-        
         # Create API Gateway
         api = apigateway.RestApi(
             self, 
@@ -57,6 +55,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         # Create API resources
         lite_demo_resource = api.root.add_resource('lite-demo')
         upload_link_resource = lite_demo_resource.add_resource('generate-upload-link')
+        download_link_resource = lite_demo_resource.add_resource('generate-download-link')
 
         # Environment variables
         s3_bucket_name = S3Map[env]['LITE_DEMO_BUCKET'].format(PROJECT_NAME.lower().replace('_', ''), RegionMap[env])
@@ -173,6 +172,80 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # ===== Lambda Function 2: Generate S3 Download Link =====
+        lambda_generate_download = lambda_.Function(
+            self,
+            f'{PROJECT_NAME}-LiteDemoGenerateS3DownloadLink',
+            function_name=f'{PROJECT_NAME}-LiteDemoGenerateS3DownloadLink',
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler='lambda_function.lambda_handler',
+            code=lambda_.Code.from_asset('lambda/Functions_LiteDemo/AAP-LiteDemoGenerateS3DownloadLink'),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment=common_env,
+            layers=[LambdaBaseLayer],
+            role=lambda_role,
+            tracing=lambda_.Tracing.ACTIVE
+        )
+
+        # API Gateway Integration for Download Link
+        download_integration = apigateway.LambdaIntegration(
+            lambda_generate_download,
+            proxy=True,
+            integration_responses=[
+                apigateway.IntegrationResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                )
+            ]
+        )
+
+        download_link_resource.add_method(
+            'GET',
+            download_integration,
+            method_responses=[
+                apigateway.MethodResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': True
+                    }
+                )
+            ]
+        )
+
+        # CORS for Download Link
+        download_link_resource.add_method(
+            'OPTIONS',
+            apigateway.MockIntegration(
+                integration_responses=[
+                    apigateway.IntegrationResponse(
+                        status_code='200',
+                        response_parameters={
+                            'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                            'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+                            'method.response.header.Access-Control-Allow-Origin': "'*'"
+                        }
+                    )
+                ],
+                passthrough_behavior=apigateway.PassthroughBehavior.NEVER,
+                request_templates={
+                    'application/json': '{"statusCode": 200}'
+                }
+            ),
+            method_responses=[
+                apigateway.MethodResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Headers': True,
+                        'method.response.header.Access-Control-Allow-Methods': True,
+                        'method.response.header.Access-Control-Allow-Origin': True
+                    }
+                )
+            ]
+        )
+
         # Add tags to all resources
         Tags.of(self).add('Project', PROJECT_NAME)
         Tags.of(self).add('Environment', env)
@@ -182,3 +255,4 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         # Store references
         self.api = api
         self.lambda_generate_upload = lambda_generate_upload
+        self.lambda_generate_download = lambda_generate_download
