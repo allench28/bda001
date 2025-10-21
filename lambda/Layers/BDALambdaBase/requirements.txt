@@ -1,0 +1,10 @@
+aws_xray_sdk
+aws-lambda-powertools
+elasticsearch
+requests-aws4auth
+simplejson
+requests
+boto3
+botocore
+dictdiffer
+opensearch-py

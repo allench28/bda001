@@ -1,0 +1,85 @@
+{
+    "typeDatas": [
+        {
+            "typeName": "Purchase Order",
+            "instruction": "The document title mentions 'Purchase Order', 'PO', 'Purchase Order Form', 'Purchase Order Request'"
+        },
+        {
+            "typeName": "Delivery Order",
+            "instruction": "The document title mentions 'Delivery Order', 'DO', 'Delivery Order Form', 'Delivery Order Request'"
+        },
+        {
+            "typeName": "Credit Note",
+            "instruction": "The document title mentions 'Credit Note', 'Credit Memo', 'Credit Voucher', 'Credit Receipt'"
+        },
+        {
+            "typeName": "Debit Note",
+            "instruction": "The document title mentions 'Debit Note', 'Debit Memo', 'Debit Voucher', 'Debit Receipt'"
+        }
+    ],
+    "instruction": "",
+    "fieldsList": [
+        [
+            {
+                "fieldName": "Document No",
+                "fieldMapping": "documentNo",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Document Date",
+                "fieldMapping": "documentDate",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Vendor Name",
+                "fieldMapping": "documentNo",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Customer Name",
+                "fieldMapping": "customerName",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Due Date",
+                "fieldMapping": "customerName",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Total",
+                "fieldMapping": "total",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Quantity",
+                "fieldMapping": "quantity",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Description",
+                "fieldMapping": "description",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Unit Price",
+                "fieldMapping": "unitPrice",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Amount",
+                "fieldMapping": "amount",
+                "fieldType": "table",
+                "instruction": ""
+            }
+        ]
+    ]
+}

@@ -1,0 +1,5 @@
+qrcode==8.0
+pillow==10.4.0
+fpdf==1.7.2
+pypdf2==3.0.1
+typing_extensions==4.12.2

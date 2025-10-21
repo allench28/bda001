@@ -1,0 +1,61 @@
+{
+    "typeDatas": [
+        {
+            "typeName": "Invoice",
+            "instruction": "The document title mentions 'Invoice', 'Bill', 'Receipt', 'Statement'"
+        }
+    ],
+    "instruction": "",
+    "fieldsList": [
+        [
+            {
+                "fieldName": "Company Name",
+                "fieldMapping": "company name",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Company Code",
+                "fieldMapping": "company code",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Total",
+                "fieldMapping": "total",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Due Date",
+                "fieldMapping": "dueDate",
+                "fieldType": "form",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Item Code",
+                "fieldMapping": "item code",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Name",
+                "fieldMapping": "name",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Description",
+                "fieldMapping": "description",
+                "fieldType": "table",
+                "instruction": ""
+            },
+            {
+                "fieldName": "Amount",
+                "fieldMapping": "amount",
+                "fieldType": "table",
+                "instruction": ""
+            }
+        ]
+    ]
+}
