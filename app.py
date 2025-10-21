@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 
 import aws_cdk as cdk
@@ -17,19 +16,25 @@ from aap_backend_cdk.environment import env
 
 from aap_backendadmin_cdk.aap_apigateway_lambda_stack import AapBackendAdminLambdaApiGatewayStack
 
+from lite_demo_cdk.lite_demo_apigateway_lambda_stack import LiteDemoApiGatewayLambdaStack
+from lite_demo_cdk.environment import env as lite_demo_env
+
 app = cdk.App()
 
-AapBackendLambdaLayersAndRolesStack(app, "AapBackendLambdaLayersAndRolesStack-{}".format(env))
-AapBackendLambdaGeneralStack(app, "AapBackendLambdaGeneralStack-{}".format(env))
-AapBackendLambdaDynamoDbStack(app, "AapBackendLambdaDynamoDbStack-{}".format(env))
-AapBackendLambdaEventBridgeStack(app, "AapBackendLambdaEventBridgeStack-{}".format(env))
-AapBackendLambdaS3Stack(app, "AapBackendLambdaS3Stack-{}".format(env))
-AapBackendLambdaSqsStack(app, "AapBackendLambdaSqsStack-{}".format(env))
-AapBackendGlueStack(app, "AapBackendGlueStack-{}".format(env)) 
-AapBackendBDALambdaStack(app, "AapBackendBDALambdaStack-{}".format(env), env=cdk.Environment(region=os.environ.get('BDA_REGION', 'us-east-1')))
-AapBackendLambdaStepFunctionStack(app, "AapBackendLambdaStepFunctionStack-{}".format(env))
-AapCloudWatchStack(app, "AapCloudWatchStack-{}".format(env))
+# AapBackendLambdaLayersAndRolesStack(app, "AapBackendLambdaLayersAndRolesStack-{}".format(env))
+# AapBackendLambdaGeneralStack(app, "AapBackendLambdaGeneralStack-{}".format(env))
+# AapBackendLambdaDynamoDbStack(app, "AapBackendLambdaDynamoDbStack-{}".format(env))
+# AapBackendLambdaEventBridgeStack(app, "AapBackendLambdaEventBridgeStack-{}".format(env))
+# AapBackendLambdaS3Stack(app, "AapBackendLambdaS3Stack-{}".format(env))
+# AapBackendLambdaSqsStack(app, "AapBackendLambdaSqsStack-{}".format(env))
+# AapBackendGlueStack(app, "AapBackendGlueStack-{}".format(env)) 
+# AapBackendBDALambdaStack(app, "AapBackendBDALambdaStack-{}".format(env), env=cdk.Environment(region=os.environ.get('BDA_REGION', 'us-east-1')))
+# AapBackendLambdaStepFunctionStack(app, "AapBackendLambdaStepFunctionStack-{}".format(env))
+# AapCloudWatchStack(app, "AapCloudWatchStack-{}".format(env))
 
-AapBackendAdminLambdaApiGatewayStack(app, "AapBackendAdminLambdaApiGatewayStack-{}".format(env))
+# AapBackendAdminLambdaApiGatewayStack(app, "AapBackendAdminLambdaApiGatewayStack-{}".format(env))
+
+# Lite Demo Stack
+LiteDemoApiGatewayLambdaStack(app, "LiteDemoApiGatewayLambdaStack-{}".format(lite_demo_env))
 
 app.synth()
