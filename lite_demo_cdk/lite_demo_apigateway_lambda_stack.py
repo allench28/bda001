@@ -4,6 +4,9 @@ from aws_cdk import (
     aws_iam as iam,
     aws_apigateway as apigateway,
     aws_ssm as ssm,
+    aws_s3 as s3,
+    aws_lambda_event_sources as lambda_event_sources,
+    aws_s3_notifications as s3n,
     Duration,
     Tags
 )
@@ -26,6 +29,9 @@ Functions:
 2. LiteDemoGenerateS3DownloadLink
    GET /lite-demo/generate-download-link
    OPTIONS /lite-demo/generate-download-link
+
+3. LiteDemoS3EventProcessor (S3 Event Triggered)
+   Automatically triggered when file uploaded to S3 input/ folder
 """
 
 class LiteDemoApiGatewayLambdaStack(Stack):
@@ -64,7 +70,8 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             'LITE_DEMO_BUCKET': s3_bucket_name,
             'POWERTOOLS_SERVICE_NAME': f'{PROJECT_NAME}-LiteDemo',
             'POWERTOOLS_METRICS_NAMESPACE': f'{PROJECT_NAME}-LiteDemo',
-            'LOG_LEVEL': 'INFO'
+            'LOG_LEVEL': 'INFO',
+            'POWERTOOLS_LOG_LEVEL': 'INFO'
         }
 
         # IAM Policy for S3 operations
@@ -246,6 +253,38 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # ===== Lambda Function 3: S3 Event Processor =====
+        lambda_s3_processor = lambda_.Function(
+            self,
+            f'{PROJECT_NAME}-LiteDemoS3EventProcessor',
+            function_name=f'{PROJECT_NAME}-LiteDemoS3EventProcessor',
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler='lambda_function.lambda_handler',
+            code=lambda_.Code.from_asset('lambda/Functions_LiteDemo/AAP-LiteDemoS3EventProcessor'),
+            timeout=Duration.minutes(3),
+            memory_size=512,
+            environment=common_env,
+            layers=[LambdaBaseLayer],
+            role=lambda_role,
+            tracing=lambda_.Tracing.ACTIVE
+        )
+
+        # Import existing S3 bucket
+        lite_demo_bucket = s3.Bucket.from_bucket_name(
+            self, 'LiteDemoBucket',
+            s3_bucket_name
+        )
+        
+        # Add S3 notification using s3_notifications (works with existing buckets)
+        lite_demo_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(lambda_s3_processor),
+            s3.NotificationKeyFilter(
+                prefix='input/',
+                suffix='.pdf'
+            )
+        )
+
         # Add tags to all resources
         Tags.of(self).add('Project', PROJECT_NAME)
         Tags.of(self).add('Environment', env)
@@ -256,3 +295,4 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         self.api = api
         self.lambda_generate_upload = lambda_generate_upload
         self.lambda_generate_download = lambda_generate_download
+        self.lambda_s3_processor = lambda_s3_processor
