@@ -13,3 +13,4 @@ __pycache__
 cdk.out
 
 *.pdf
+upload_to_s3.py

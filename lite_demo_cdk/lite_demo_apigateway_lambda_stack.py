@@ -36,7 +36,7 @@ Functions:
 
 class LiteDemoApiGatewayLambdaStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Import Lambda Layers from SSM Parameter Store
@@ -65,9 +65,11 @@ class LiteDemoApiGatewayLambdaStack(Stack):
 
         # Environment variables
         s3_bucket_name = S3Map[env]['LITE_DEMO_BUCKET'].format(PROJECT_NAME.lower().replace('_', ''), RegionMap[env])
+        documents_table_name = DynamoDBTableMap[env]['LITE_DEMO_DOCUMENTS'].format(PROJECT_NAME.lower().replace('_', '-'))
         
         common_env = {
             'LITE_DEMO_BUCKET': s3_bucket_name,
+            'DOCUMENTS_TABLE_NAME': documents_table_name,
             'POWERTOOLS_SERVICE_NAME': f'{PROJECT_NAME}-LiteDemo',
             'POWERTOOLS_METRICS_NAMESPACE': f'{PROJECT_NAME}-LiteDemo',
             'LOG_LEVEL': 'INFO',
@@ -89,6 +91,22 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # IAM Policy for DynamoDB operations
+        dynamodb_policy = iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                'dynamodb:PutItem',
+                'dynamodb:GetItem',
+                'dynamodb:UpdateItem',
+                'dynamodb:Query',
+                'dynamodb:Scan'
+            ],
+            resources=[
+                f'arn:aws:dynamodb:{RegionMap[env]}:{AccountMap[env]}:table/{documents_table_name}',
+                f'arn:aws:dynamodb:{RegionMap[env]}:{AccountMap[env]}:table/{documents_table_name}/index/*'
+            ]
+        )
+
         # Lambda execution role
         lambda_role = iam.Role.from_role_arn(
             self, f'{PROJECT_NAME}' + 'LambdaRole',
@@ -104,6 +122,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
         lambda_role.add_to_policy(s3_policy)
+        lambda_role.add_to_policy(dynamodb_policy)
 
         # ===== Lambda Function 1: Generate S3 Upload Link =====
         lambda_generate_upload = lambda_.Function(

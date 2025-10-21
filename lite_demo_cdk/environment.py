@@ -26,3 +26,18 @@ S3Map = {
         'LITE_DEMO_BUCKET': '{}-documents-bucket-{}'
     }
 }
+
+DynamoDBTableMap = {
+    'dev': {
+        'LITE_DEMO_DOCUMENTS': '{}-documents-table',
+    },
+    'staging': {
+        'LITE_DEMO_DOCUMENTS': '{}-documents-table',
+    },
+    'demo': {
+        'LITE_DEMO_DOCUMENTS': '{}-documents-table',
+    },
+    'prod': {
+        'LITE_DEMO_DOCUMENTS': '{}-documents-table'
+    }
+}

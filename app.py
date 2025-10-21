@@ -16,6 +16,7 @@ from aap_backend_cdk.environment import env
 
 from aap_backendadmin_cdk.aap_apigateway_lambda_stack import AapBackendAdminLambdaApiGatewayStack
 
+from lite_demo_cdk.lite_demo_dynamodb_stack import LiteDemoDynamoDBStack
 from lite_demo_cdk.lite_demo_apigateway_lambda_stack import LiteDemoApiGatewayLambdaStack
 from lite_demo_cdk.environment import env as lite_demo_env
 
@@ -34,7 +35,12 @@ app = cdk.App()
 
 # AapBackendAdminLambdaApiGatewayStack(app, "AapBackendAdminLambdaApiGatewayStack-{}".format(env))
 
-# Lite Demo Stack
-LiteDemoApiGatewayLambdaStack(app, "LiteDemoApiGatewayLambdaStack-{}".format(lite_demo_env))
+# Lite Demo Stacks
+lite_demo_dynamodb_stack = LiteDemoDynamoDBStack(app, "LiteDemoDynamoDBStack-{}".format(lite_demo_env))
+LiteDemoApiGatewayLambdaStack(
+    app, 
+    "LiteDemoApiGatewayLambdaStack-{}".format(lite_demo_env),
+    dynamodb_stack=lite_demo_dynamodb_stack
+)
 
 app.synth()

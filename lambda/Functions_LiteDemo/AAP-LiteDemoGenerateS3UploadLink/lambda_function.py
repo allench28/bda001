@@ -2,13 +2,18 @@ import os
 import json
 import uuid
 import boto3
+from datetime import datetime
 from aws_lambda_powertools import Logger, Tracer
 from botocore.client import Config
 
 LITE_DEMO_BUCKET = os.environ.get('LITE_DEMO_BUCKET')
+DOCUMENTS_TABLE_NAME = os.environ.get('DOCUMENTS_TABLE_NAME')
 
 logger = Logger()
 tracer = Tracer()
+
+# DynamoDB client
+dynamodb = boto3.resource('dynamodb')
 
 # Configurations for different upload types
 UPLOAD_CONFIGS = {
@@ -63,6 +68,9 @@ def lambda_handler(event, context):
             config['expiration']
         )
         
+        # Create initial document record in DynamoDB
+        create_document_record(upload_id, file_name, key, upload_type)
+        
         # Create response
         payload = {
             "processId": upload_id,
@@ -111,6 +119,47 @@ def generate_presigned_post(bucket_name, object_name, max_file_size, expiration=
         return json.dumps(response)
     except Exception as e:
         raise Exception(f"Failed to generate presigned POST URL: {str(e)}")
+
+@tracer.capture_method
+def create_document_record(document_id, file_name, s3_key, upload_type):
+    """
+    Create initial document record in DynamoDB with status 'uploaded'
+    """
+    try:
+        table = dynamodb.Table(DOCUMENTS_TABLE_NAME)
+        
+        current_timestamp = int(datetime.now().timestamp())
+        current_iso = datetime.now().isoformat()
+        
+        item = {
+            'documentId': document_id,
+            'createdAt': current_timestamp,
+            'fileName': file_name,
+            's3Key': s3_key,
+            'uploadType': upload_type,
+            'status': 'uploaded',
+            'uploadedAt': current_iso,
+            'updatedAt': current_iso
+        }
+        
+        table.put_item(Item=item)
+        
+        logger.info(f"Created document record", extra={
+            'document_id': document_id,
+            'file_name': file_name,
+            'status': 'uploaded'
+        })
+        
+        return item
+        
+    except Exception as e:
+        logger.error(f"Failed to create document record: {str(e)}", extra={
+            'document_id': document_id,
+            'error': str(e)
+        })
+        # Don't fail the upload if DynamoDB fails
+        # Just log and continue
+        return None
 
 @tracer.capture_method
 def create_response(status_code, message, payload=None):
