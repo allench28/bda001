@@ -17,6 +17,8 @@ import boto3
 from datetime import datetime
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.data_classes import S3Event
+from prompts import PROMPTS
+from bedrock_function import extraction_markdown_bedrock
 
 logger = Logger()
 tracer = Tracer()
@@ -96,9 +98,12 @@ def lambda_handler(event, context):
                 try:
                     # Step 1: Process document with BDA and get markdown
                     markdown_content = process_document_with_bda(bucket, key, document_id)
+
+                    # Step 2: Classify documents into invoices and purchase orders
+                    document_type = classify_document(markdown_content)
                     
                     # Step 2: Send markdown to Converse API for structured extraction
-                    extraction_result = extract_structured_data_with_converse(markdown_content, document_id)
+                    extraction_result = extract_structured_data_with_converse(markdown_content, document_type, document_id)
                     
                     # Step 3: Update DynamoDB with parsed results
                     update_document_with_results(document_id, extraction_result)
@@ -202,7 +207,56 @@ def update_document_status(document_id, status, error_message=None):
 
 
 @tracer.capture_method
-def extract_structured_data_with_converse(markdown_content, document_id):
+def classify_document(markdown_content):
+    prompt = f"""
+<markdown_content>
+{markdown_content}
+</markdown_content>
+
+<task>
+1. Identify the document type from <markdown_content>
+2. return either invoice or po
+</task>
+
+<output_format>
+{{"documentType": invoice/po}}
+</output_format>
+"""
+
+    bedrock_response = extraction_markdown_bedrock(prompt)
+
+    output_message = bedrock_response.get('output', {}).get('message', {})
+    content_blocks = output_message.get('content', [])
+    
+    if not content_blocks:
+        logger.info(f"No content in Bedrock response")
+        return "invoice"
+    
+    response_text = content_blocks[0].get('text', '').strip()
+    
+    # Check if it's an error response
+    if response_text.lower().startswith('error:'):
+        logger.info(f"Bedrock classification failed: {response_text}")
+        return "invoice"
+    
+    try:
+        # Parse JSON response
+        import json
+        response_json = json.loads(response_text)
+        document_type = response_json.get('documentType', 'invoice').lower()
+        
+        logger.info(f"Document classified as: {document_type}")
+        return document_type
+        
+    except json.JSONDecodeError:
+        logger.warning(f"Failed to parse JSON response, using raw text: {response_text}")
+        return "invoice"
+
+
+
+
+@tracer.capture_method
+def extract_structured_data_with_converse(markdown_content, document_type, document_id):
     """
     Send markdown content to Converse API to extract structured data.
     
@@ -219,11 +273,12 @@ def extract_structured_data_with_converse(markdown_content, document_id):
     try:
         logger.info(f"Starting Converse API extraction", extra={
             'document_id': document_id,
+            'document_type': document_type,
             'markdown_length': len(markdown_content)
         })
         
         # Build prompt for extraction
-        prompt = build_extraction_prompt(markdown_content)
+        prompt = build_extraction_prompt(markdown_content, document_type)
         
         # Call Bedrock Converse API
         response = bedrock_runtime.converse(
@@ -237,7 +292,7 @@ def extract_structured_data_with_converse(markdown_content, document_id):
             inferenceConfig={
                 "maxTokens": 4096,
                 "temperature": 0,
-                "topP": 1
+                "topP": 0.0001
             }
         )
         
@@ -256,7 +311,7 @@ def extract_structured_data_with_converse(markdown_content, document_id):
         })
         
         # Parse JSON response from Converse
-        extraction_result = parse_converse_response(response_text)
+        extraction_result = parse_converse_response(response_text, document_type)
         
         return extraction_result
         
@@ -271,83 +326,70 @@ def extract_structured_data_with_converse(markdown_content, document_id):
 
 
 @tracer.capture_method
-def build_extraction_prompt(markdown_content):
-    """
-    Build extraction prompt for Converse API.
-    
-    Args:
-        markdown_content: Markdown text from BDA
-    
-    Returns:
-        str: Formatted prompt
-    """
-    prompt = f"""You are a document extraction assistant. Extract structured information from the following document content.
-
-Document Content:
-{markdown_content}
-
-Extract the following information and return as JSON:
-
-1. Header Information:
-   - companyName: Company or supplier name
-   - invoiceNo: Invoice number
-   - invoiceDate: Invoice date
-   - dofRef: DOF reference (if any)
-   - poRef: PO reference or purchase order number (if any)
-   - address: Company address
-
-2. Line Items:
-   Extract all line items from the document with:
-   - itemNo: Sequential item number
-   - description: Item description
-   - quantity: Quantity
-   - unitPrice: Unit price
-   - total: Total amount
-
-Return ONLY valid JSON in this exact format:
-{{
-  "headerInformation": {{
-    "companyName": "...",
-    "invoiceNo": "...",
-    "invoiceDate": "...",
-    "dofRef": "...",
-    "poRef": "...",
-    "address": "..."
-  }},
-  "lineItems": [
-    {{
-      "itemNo": "1",
-      "description": "...",
-      "quantity": "...",
-      "unitPrice": "...",
-      "total": "..."
-    }}
-  ]
-}}
-
-If a field is not found, use "Not found" as the value.
-If no line items are found, return an empty array.
-Do not include any explanation or text outside the JSON."""
+def build_extraction_prompt(markdown_content, document_type):
+    prompt = PROMPTS[document_type.lower()].format(markdown_content=markdown_content)
 
     return prompt
 
 
+# Display name mapping configuration by document type
+DISPLAY_NAME_MAPPING = {
+    'invoice': {
+        # Header fields
+        'AccountNumber':  {'columnName': 'accountNumber', 'displayName': 'Account Number'},
+        'BillingPeriod':  {'columnName': 'billingPeriod', 'displayName': 'Billing Period'},
+        'ContractNo':  {'columnName': 'contractNumber', 'displayName': 'Contract Number'},
+        'Vendor': {'columnName': 'vendorName', 'displayName': 'Vendor Name'},
+        'VendorAddress':  {'columnName': 'vendorAddress', 'displayName': 'Vendor Address'},
+        'InvoiceNumber': {'columnName': 'invoiceNumber', 'displayName': 'Invoice Number'},
+        'InvoiceDate': {'columnName': 'invoiceDate', 'displayName': 'Invoice Date'},
+        'TotalCharge': {'columnName': 'invoiceAmount', 'displayName': 'Total Price'},
+        'Currency': {'columnName': 'currency', 'displayName': 'Currency'},
+        'DueDate': {'columnName': 'dueDate', 'displayName': 'Due Date'},
+        'TaxAmount': {'columnName': 'taxAmount', 'displayName': 'Tax Amount'},
+        'TaxRate':  {'columnName': 'taxRate', 'displayName': 'Tax Rate'},
+        'TaxType':  {'columnName': 'taxType', 'displayName': 'Tax Type'},
+        
+        # Line item fields
+        'Description': {'columnName': 'itemDescription', 'displayName': 'Item Description'},
+        'Quantity': {'columnName': 'quantity', 'displayName': 'Quantity'},
+        'UnitPrice': {'columnName': 'unitPrice', 'displayName': 'Unit Price'},
+        'TotalAmount': {'columnName': 'totalItemPrice', 'displayName': 'Total Item Price'},
+        'UOM': {'columnName': 'uom', 'displayName': 'Unit of Measure'}
+    },
+    'po': {
+        # Header fields
+        'Vendor': {'columnName': 'supplierName', 'displayName': 'Supplier Name'},
+        'PONumber': {'columnName': 'poNumber', 'displayName': 'PO Number'},
+        'PODate': {'columnName': 'poDate', 'displayName': 'PO Date'},
+        'DeliveryDate': {'columnName': 'deliveryDate', 'displayName': 'Delivery Date'},
+        'TotalAmount': {'columnName': 'totalAmount', 'displayName': 'Total Amount'},
+        
+        # Line item fields
+        'Description': {'columnName': 'itemDescription', 'displayName': 'Item Description'},
+        'Quantity': {'columnName': 'quantity', 'displayName': 'Quantity Ordered'},
+        'UnitPrice': {'columnName': 'unitPrice', 'displayName': 'Unit Price'},
+        'TotalAmount': {'columnName': 'lineTotal', 'displayName': 'Line Total'},
+        'UOM': {'columnName': 'uom', 'displayName': 'Unit of Measure'}
+    }
+}
+
 @tracer.capture_method
-def parse_converse_response(response_text):
+def parse_converse_response(response_text, document_type='invoice'):
     """
-    Parse JSON response from Converse API.
+    Parse array response from Converse API and convert to expected format.
     
     Args:
-        response_text: Response text from Converse API
+        response_text: Response text from Converse API (array format)
     
     Returns:
-        dict: Parsed extraction result
+        dict: Structured extraction result with data.formData and data.tableData
     
     Raises:
         ProcessingError: If parsing fails
     """
     try:
-        # Remove markdown code blocks if present
+        # Clean response text
         cleaned_text = response_text.strip()
         if cleaned_text.startswith('```json'):
             cleaned_text = cleaned_text[7:]
@@ -355,52 +397,85 @@ def parse_converse_response(response_text):
             cleaned_text = cleaned_text[3:]
         if cleaned_text.endswith('```'):
             cleaned_text = cleaned_text[:-3]
-        
         cleaned_text = cleaned_text.strip()
         
-        # Parse JSON
-        extraction_result = json.loads(cleaned_text)
+        # Parse array response
+        entities = json.loads(cleaned_text)
         
-        # Validate structure
-        if 'headerInformation' not in extraction_result:
-            raise ProcessingError("Missing headerInformation in response")
+        # Convert to expected format
+        form_data = []
+        line_items = {}
         
-        if 'lineItems' not in extraction_result:
-            extraction_result['lineItems'] = []
-        
-        # Ensure all required header fields exist
-        required_header_fields = ['companyName', 'invoiceNo', 'invoiceDate', 'dofRef', 'poRef', 'address']
-        for field in required_header_fields:
-            if field not in extraction_result['headerInformation']:
-                extraction_result['headerInformation'][field] = 'Not found'
-        
-        # Validate line items structure
-        for idx, item in enumerate(extraction_result['lineItems'], start=1):
-            if 'itemNo' not in item:
-                item['itemNo'] = str(idx)
+        for entity in entities:
+            entity_name = entity.get('entityName', '')
+            entity_value = entity.get('entityValue', '')
+            confidence = entity.get('confidence', 100)
             
-            required_item_fields = ['description', 'quantity', 'unitPrice', 'total']
-            for field in required_item_fields:
-                if field not in item:
-                    item[field] = 'Not found'
+            if entity_name.startswith('lineItem'):
+                # Extract line item number and field
+                parts = entity_name.split('_', 1)
+                if len(parts) == 2:
+                    item_key = parts[0]  # e.g., 'lineItem1'
+                    field_name = parts[1]  # e.g., 'Description'
+                    
+                    if item_key not in line_items:
+                        line_items[item_key] = []
+                    
+                    # Get mapping for line item field
+                    doc_mapping = DISPLAY_NAME_MAPPING.get(document_type, {})
+                    mapping = doc_mapping.get(field_name, {
+                        'columnName': field_name.lower(),
+                        'displayName': field_name
+                    })
+                    
+                    line_items[item_key].append({
+                        'columnName': mapping['columnName'],
+                        'columnValue': entity_value,
+                        'confidenceScore': confidence,
+                        'displayName': mapping['displayName']
+                    })
+            else:
+                # Header field - add to formData
+                doc_mapping = DISPLAY_NAME_MAPPING.get(document_type, {})
+                mapping = doc_mapping.get(entity_name, {
+                    'columnName': entity_name.lower(),
+                    'displayName': entity_name
+                })
+                
+                form_data.append({
+                    'columnName': mapping['columnName'],
+                    'columnValue': entity_value,
+                    'confidenceScore': confidence,
+                    'displayName': mapping['displayName']
+                })
         
-        logger.info(f"Successfully parsed Converse response", extra={
-            'header_fields': len(extraction_result['headerInformation']),
-            'line_items_count': len(extraction_result['lineItems'])
+        # Convert line_items dict to array format
+        table_data = []
+        for i in range(1, 100):  # Support up to 99 line items
+            item_key = f'lineItem{i}'
+            if item_key in line_items:
+                table_data.append(line_items[item_key])
+        
+        result = {
+            'data': {
+                'formData': form_data,
+                'tableData': table_data
+            }
+        }
+        
+        logger.info(f"Successfully parsed array response", extra={
+            'form_data_count': len(form_data),
+            'table_data_count': len(table_data)
         })
         
-        return extraction_result
+        return result
         
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON from Converse response: {str(e)}", extra={
-            'response_preview': response_text[:500]
-        })
-        raise ProcessingError(f"Invalid JSON in Converse response: {str(e)}")
-    except ProcessingError:
-        raise
+        logger.error(f"Failed to parse JSON array response: {str(e)}")
+        raise ProcessingError(f"Invalid JSON in array response: {str(e)}")
     except Exception as e:
-        logger.error(f"Error parsing Converse response: {str(e)}")
-        raise ProcessingError(f"Failed to parse Converse response: {str(e)}")
+        logger.error(f"Error parsing array response: {str(e)}")
+        raise ProcessingError(f"Failed to parse array response: {str(e)}")
 
 
 @tracer.capture_method
@@ -433,8 +508,7 @@ def update_document_with_results(document_id, extraction_result):
         
         # Update with extraction results
         item['status'] = 'completed'
-        item['headerInformation'] = extraction_result.get('headerInformation', {})
-        item['lineItems'] = extraction_result.get('lineItems', [])
+        item['data'] = extraction_result.get('data', {})
         item['processedAt'] = current_iso
         item['updatedAt'] = current_iso
         
@@ -448,7 +522,8 @@ def update_document_with_results(document_id, extraction_result):
         logger.info(f"Successfully updated document with extraction results", extra={
             'document_id': document_id,
             'status': 'completed',
-            'line_items_count': len(item['lineItems'])
+            'form_data_count': len(extraction_result.get('data', {}).get('formData', [])),
+            'table_data_count': len(extraction_result.get('data', {}).get('tableData', []))
         })
         
     except ProcessingError:

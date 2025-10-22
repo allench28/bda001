@@ -55,7 +55,8 @@ def lambda_handler(event, context):
         
         # Generate unique upload ID
         upload_id = str(uuid.uuid4())
-        key = f"{config['path_prefix']}/{upload_id}/{file_name}"
+        cleaned_file_name = clean_file_name(file_name)
+        key = f"{config['path_prefix']}/{upload_id}/{cleaned_file_name}"
         
         # Verify file extension
         file_ext = verify_file_extension(file_name, config['allowed_extensions'])
@@ -69,7 +70,7 @@ def lambda_handler(event, context):
         )
         
         # Create initial document record in DynamoDB
-        create_document_record(upload_id, file_name, key, upload_type)
+        create_document_record(upload_id, cleaned_file_name, key, upload_type)
         
         # Create response
         payload = {
@@ -90,6 +91,16 @@ def lambda_handler(event, context):
             500, 
             "The server encountered an unexpected condition that prevented it from fulfilling your request."
         )
+
+@tracer.capture_method
+def clean_file_name(file_name):
+    """Clean file name by removing symbols and replacing spaces with underscores"""
+    import re
+    # Keep only alphanumeric, dots, hyphens, underscores
+    cleaned = re.sub(r'[^a-zA-Z0-9._-]', '_', file_name)
+    # Replace multiple underscores with single underscore
+    cleaned = re.sub(r'_+', '_', cleaned)
+    return cleaned
 
 @tracer.capture_method
 def verify_file_extension(filename, allowed_file_ext):
