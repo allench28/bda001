@@ -75,6 +75,15 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             'LOG_LEVEL': 'INFO',
             'POWERTOOLS_LOG_LEVEL': 'INFO'
         }
+        
+        # S3 Processor specific env vars (for BDA)
+        s3_processor_env = {
+            **common_env,
+            'BDA_RUNTIME_ENDPOINT': 'https://bedrock-data-automation-runtime.us-east-1.amazonaws.com',
+            'OUTPUT_BUCKET': s3_bucket_name,
+            'BDA_PROJECT_ARN': BDAMap[env]['PROJECT_ARN'],
+            'BDA_PROFILE_ARN': BDAMap[env]['PROFILE_ARN']
+        }
 
         # IAM Policy for S3 operations
         s3_policy = iam.PolicyStatement(
@@ -107,6 +116,27 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # IAM Policy for Bedrock Data Automation
+        bedrock_policy = iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                'bedrock:InvokeDataAutomationAsync',
+                'bedrock:GetDataAutomationStatus',
+                'bedrock:InvokeModel',
+                'bedrock:InvokeModelWithResponseStream'
+            ],
+            resources=[
+                # Specific project and profile
+                BDAMap[env]['PROJECT_ARN'],
+                BDAMap[env]['PROFILE_ARN'],
+                # Wildcard for all BDA resources in us-east-1
+                'arn:aws:bedrock:us-east-1:*:data-automation-project/*',
+                'arn:aws:bedrock:us-east-1:*:data-automation-profile/*',
+                # Wildcard for foundation models (if needed)
+                'arn:aws:bedrock:*::foundation-model/*'
+            ]
+        )
+
         # Lambda execution role
         lambda_role = iam.Role.from_role_arn(
             self, f'{PROJECT_NAME}' + 'LambdaRole',
@@ -118,11 +148,14 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             assumed_by=iam.ServicePrincipal('lambda.amazonaws.com'),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSLambdaBasicExecutionRole'),
-                iam.ManagedPolicy.from_aws_managed_policy_name('AWSXRayDaemonWriteAccess')
+                iam.ManagedPolicy.from_aws_managed_policy_name('AWSXRayDaemonWriteAccess'),
+                # Add Bedrock managed policy for full access
+                iam.ManagedPolicy.from_aws_managed_policy_name('AmazonBedrockFullAccess')
             ]
         )
         lambda_role.add_to_policy(s3_policy)
         lambda_role.add_to_policy(dynamodb_policy)
+        lambda_role.add_to_policy(bedrock_policy)
 
         # ===== Lambda Function 1: Generate S3 Upload Link =====
         lambda_generate_upload = lambda_.Function(
@@ -280,9 +313,9 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler='lambda_function.lambda_handler',
             code=lambda_.Code.from_asset('lambda/Functions_LiteDemo/AAP-LiteDemoS3EventProcessor'),
-            timeout=Duration.minutes(3),
-            memory_size=512,
-            environment=common_env,
+            timeout=Duration.minutes(5),
+            memory_size=1024,
+            environment=s3_processor_env,
             layers=[LambdaBaseLayer],
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
