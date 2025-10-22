@@ -30,7 +30,11 @@ Functions:
    GET /lite-demo/generate-download-link
    OPTIONS /lite-demo/generate-download-link
 
-3. LiteDemoS3EventProcessor (S3 Event Triggered)
+3. LiteDemoGenerateS3DownloadLink
+   GET /lite-demo/get-document
+   OPTIONS /lite-demo/get-document
+
+4. LiteDemoS3EventProcessor (S3 Event Triggered)
    Automatically triggered when file uploaded to S3 input/ folder
 """
 
@@ -62,6 +66,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         lite_demo_resource = api.root.add_resource('lite-demo')
         upload_link_resource = lite_demo_resource.add_resource('generate-upload-link')
         download_link_resource = lite_demo_resource.add_resource('generate-download-link')
+        get_document_resource = lite_demo_resource.add_resource('get-document')
 
         # Environment variables
         s3_bucket_name = S3Map[env]['LITE_DEMO_BUCKET'].format(PROJECT_NAME.lower().replace('_', ''), RegionMap[env])
@@ -273,8 +278,51 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # ===== Lambda Function 3: Get Document =====
+        lambda_get_document = lambda_.Function(
+            self,
+            f'{PROJECT_NAME}-LiteDemoGetDocument',
+            function_name=f'{PROJECT_NAME}-LiteDemoGetDocument',
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler='lambda_function.lambda_handler',
+            code=lambda_.Code.from_asset('lambda/Functions_LiteDemo/AAP-LiteDemoGetDocument'),
+            timeout=Duration.seconds(300),
+            memory_size=128,
+            environment=common_env,
+            layers=[LambdaBaseLayer],
+            role=lambda_role,
+            tracing=lambda_.Tracing.ACTIVE
+        )
+
+        # API Gateway Integration for Download Link
+        get_document_integration = apigateway.LambdaIntegration(
+            lambda_get_document,
+            proxy=True,
+            integration_responses=[
+                apigateway.IntegrationResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                )
+            ]
+        )
+
+        get_document_resource.add_method(
+            'GET',
+            get_document_integration,
+            method_responses=[
+                apigateway.MethodResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': True
+                    }
+                )
+            ]
+        )
+
         # CORS for Download Link
-        download_link_resource.add_method(
+        get_document_resource.add_method(
             'OPTIONS',
             apigateway.MockIntegration(
                 integration_responses=[

@@ -35,28 +35,10 @@ class LiteDemoDynamoDBStack(Stack):
                 name='documentId',
                 type=dynamodb.AttributeType.STRING
             ),
-            sort_key=dynamodb.Attribute(
-                name='createdAt',
-                type=dynamodb.AttributeType.NUMBER
-            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             point_in_time_recovery=True,
             removal_policy=RemovalPolicy.RETAIN,
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES
-        )
-
-        # GSI for querying by status
-        documents_table.add_global_secondary_index(
-            index_name='status-createdAt-index',
-            partition_key=dynamodb.Attribute(
-                name='status',
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name='createdAt',
-                type=dynamodb.AttributeType.NUMBER
-            ),
-            projection_type=dynamodb.ProjectionType.ALL
         )
 
         # Add tags
