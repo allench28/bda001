@@ -1,6 +1,5 @@
 PROMPTS = {
     'invoice': """
-
 <markdown_content>
 {markdown_content}
 </markdown_content>
@@ -23,7 +22,7 @@ B) Provide confidence scores (0-100) for each extracted field
 8. TaxAmount: Total tax amount
 9. TaxRate: Tax rate percentage  
 10. TaxType: Type of tax (Service Tax[SST]/GST/VAT), KWTBB and ICPT are not tax types
-11. TotalCharge: The final total of entire invoice for the current billing period only without any outstanding amount, this amount is the sum of current month's line item amounts, tax amount, rounding amount, and deduction of discount amount ONLY.
+11. TotalInvoiceCharge: The final total of entire invoice for the current billing period only without any outstanding amount, this amount is the sum of current month's line item amounts, tax amount, rounding amount, and deduction of discount amount ONLY.
 12. Vendor: Full name of the company/individual that issued the invoice or is payable to
 13. VendorAddress: Full address of company/individual that issued the invoice
 
@@ -39,7 +38,7 @@ For each line item found in the invoice table/itemized section, extract these fi
 2. UOM: Unit of measure (pieces, kg, hours, etc.)
 3. Quantity: Quantity ordered/delivered
 4. UnitPrice: Price per unit
-5. AmountWithoutTax: Line item total amount.
+5. AmountWithTax: Line item total amount.
 
 </extraction_instructions>
 
@@ -60,25 +59,99 @@ ONLY output the JSON array with the following structure, you MUST NOT include an
   {{
     "entityName": "InvoiceNumber",
     "entityValue": "extracted value or empty string",
-    "confidence": confidence_score_0_to_100,
-    "pageNumber": page_where_found
+    "confidence": confidence_score_0_to_100
   }},
 // other invoice fields
   {{
     "entityName": "lineItem1_Description", 
     "entityValue": "extracted line item 1 description",
-    "confidence": confidence_score_0_to_100,
-    "pageNumber": page_where_found
+    "confidence": confidence_score_0_to_100
   }},
   {{
     "entityName": "lineItem1_TotalAmountWithTax", 
     "entityValue": "extracted line item 1 total amount",
-    "confidence": confidence_score_0_to_100,
-    "pageNumber": page_where_found
+    "confidence": confidence_score_0_to_100
   }},
 // other line items fields
 ]
 </output_format>
 """,
-    'po': """hi2"""
+    'po': """
+<markdown_content>
+{markdown_content}
+</markdown_content>
+
+<Task Summary>:
+You are extracting data from purchase order document to help with automated processing. You must:
+A) Extract specific purchase order fields and ALL line item data from <markdown_content>
+B) Provide confidence scores (0-100) for each extracted field
+</Task Summary>
+
+<extraction_instructions>:
+**Purhcase Order Level Fields:**
+1. BuyerAddress: The official address of the buyer or purchasing organization
+2. BuyerName: The full name of the buyer or the purchasing organization
+3. Currency: The currency used in the transaction (e.g., USD, MYR, EUR)
+4. DeliveryAddress: The location where the goods or services are to be delivered. If empty, the value from "BuyerAddress" will be used.
+5. PaymentTerms: The terms under which the payment is to be made (e.g., Net 30, 50% upfront). If empty, "" will be returned.
+6. PoDate: The date the purchase order was issued
+7. PoNumber: The unique identifier for the purchase order
+8. RequestDeliveryDate: The expected or requested delivery date of the goods or services. If empty, "" will be returned.
+9. SupplierAddress: The official address of the supplier
+10. SupplierName: The full name of the supplier providing the goods or services
+11. TaxRate: The percentage rate of the applied tax (e.g., 6%). If empty, "" will be returned.
+12. TaxType: The type of tax applied to the order (e.g., GST, VAT, SST). If empty, "" will be returned.
+13. TotalPoAmount: The grand total of the purchase order, including tax
+
+**Line Item Fields:**
+For each line item found in the invoice table/itemized section, extract these fields with numbered prefixes:
+
+**Line Item 1:** lineItem1_Description, lineItem1_UOM, lineItem1_Quantity, lineItem1_UnitPrice, lineItem1_TotalAmount
+
+**Line Item n:** lineItemn_Description, lineItemn_UOM, lineItemn_Quantity, lineItemn_UnitPrice, lineItemn_TotalAmount
+
+**Line Item Field Descriptions:**
+1. Description: Item description or service name  
+2. UOM: Unit of measure (pieces, kg, hours, etc.)
+3. Quantity: Quantity ordered/delivered
+4. UnitPrice: Price per unit
+5. AmountWithTax: Line item total amount.
+
+</extraction_instructions>
+
+<extraction_rules>:
+Return "" (empty string) if a field cannot be found
+Extract values exactly as they appear in the document
+For amounts, include decimal values (e.g., "100.50" not "100")
+Extract ALL line items you can find in the document (not just the first one)
+If a line item field is not available, use empty string for that specific field
+Number line items sequentially starting from 1
+Confidence: 100 = completely certain, 50 = some uncertainty, 0 = not found
+</extraction_rules>
+
+Include ALL invoice-level fields and ALL line item fields for ALL line items found, even if some have empty values.
+<output_format>
+ONLY output the JSON array with the following structure, you MUST NOT include any other texts:
+[
+  {{
+    "entityName": "PoNumber",
+    "entityValue": "extracted value or empty string",
+    "confidence": confidence_score_0_to_100
+  }},
+// other invoice fields
+  {{
+    "entityName": "lineItem1_Description", 
+    "entityValue": "extracted line item 1 description",
+    "confidence": confidence_score_0_to_100
+  }},
+  {{
+    "entityName": "lineItem1_TotalAmountWithTax", 
+    "entityValue": "extracted line item 1 total amount",
+    "confidence": confidence_score_0_to_100
+  }},
+// other line items fields
+]
+</output_format>
+
+"""
 }

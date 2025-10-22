@@ -216,7 +216,18 @@ def classify_document(markdown_content):
 <task>
 1. Identify the document type from <markdown_content>
 2. return either invoice or po
+3. Output the JSON structure as shown in <output_format>, your response will be parsed by json.loads() which will not accept single quotes
 </task>
+
+<descriptions>
+DOCUMENT TYPES AND KEY IDENTIFIERS:
+1. invoice - Primary identifiers: invoice number, vendor name, invoice date, customer/bill-to name
+   Secondary identifiers: total amount, tax amounts, payment terms
+
+2. PURCHASE ORDER (PO) - Primary identifiers: PO number, order date, vendor name
+   Secondary identifiers: delivery address, item quantities, prices
+
+</descriptions>
 
 <output_format>
 {{"documentType": invoice/po}}
@@ -343,7 +354,7 @@ DISPLAY_NAME_MAPPING = {
         'VendorAddress':  {'columnName': 'vendorAddress', 'displayName': 'Vendor Address'},
         'InvoiceNumber': {'columnName': 'invoiceNumber', 'displayName': 'Invoice Number'},
         'InvoiceDate': {'columnName': 'invoiceDate', 'displayName': 'Invoice Date'},
-        'TotalCharge': {'columnName': 'invoiceAmount', 'displayName': 'Total Price'},
+        'TotalInvoiceCharge': {'columnName': 'totalInvoiceAmount', 'displayName': 'Total Invoice Price'},
         'Currency': {'columnName': 'currency', 'displayName': 'Currency'},
         'DueDate': {'columnName': 'dueDate', 'displayName': 'Due Date'},
         'TaxAmount': {'columnName': 'taxAmount', 'displayName': 'Tax Amount'},
@@ -354,22 +365,29 @@ DISPLAY_NAME_MAPPING = {
         'Description': {'columnName': 'itemDescription', 'displayName': 'Item Description'},
         'Quantity': {'columnName': 'quantity', 'displayName': 'Quantity'},
         'UnitPrice': {'columnName': 'unitPrice', 'displayName': 'Unit Price'},
-        'TotalAmount': {'columnName': 'totalItemPrice', 'displayName': 'Total Item Price'},
+        'AmountWithTax': {'columnName': 'totalItemPrice', 'displayName': 'Total Item Price'},
         'UOM': {'columnName': 'uom', 'displayName': 'Unit of Measure'}
     },
     'po': {
-        # Header fields
-        'Vendor': {'columnName': 'supplierName', 'displayName': 'Supplier Name'},
-        'PONumber': {'columnName': 'poNumber', 'displayName': 'PO Number'},
-        'PODate': {'columnName': 'poDate', 'displayName': 'PO Date'},
-        'DeliveryDate': {'columnName': 'deliveryDate', 'displayName': 'Delivery Date'},
-        'TotalAmount': {'columnName': 'totalAmount', 'displayName': 'Total Amount'},
+        'BuyerAddress':  {'columnName': 'buyerAddress', 'displayName': 'Buyer Address'},
+        'BuyerName':  {'columnName': 'buyerName', 'displayName': 'Buyer Name'},
+        'Currency':  {'columnName': 'currency', 'displayName': 'Currency'},
+        'DeliveryAddress': {'columnName': 'deliveryAddress', 'displayName': 'Delivery Address'},
+        'PaymentTerms':  {'columnName': 'paymentTerms', 'displayName': 'Payment Terms'},
+        'PoDate': {'columnName': 'poDate', 'displayName': 'Po Date'},
+        'PoNumber': {'columnName': 'poNumber', 'displayName': 'Po Number'},
+        'RequestDeliveryDate': {'columnName': 'requestDeliveryDate', 'displayName': 'Requested Delivery Date'},
+        'SupplierAddress': {'columnName': 'supplierAddress', 'displayName': 'Supplier Address'},
+        'SupplierName': {'columnName': 'supplierName', 'displayName': 'Supplier Name'},
+        'TaxRate': {'columnName': 'taxRate', 'displayName': 'Tax Rate'},
+        'TaxType':  {'columnName': 'taxType', 'displayName': 'Tax Type'},
+        'TotalPoAmount':  {'columnName': 'totalPoAmount', 'displayName': 'Total PO Price'},
         
         # Line item fields
         'Description': {'columnName': 'itemDescription', 'displayName': 'Item Description'},
-        'Quantity': {'columnName': 'quantity', 'displayName': 'Quantity Ordered'},
+        'Quantity': {'columnName': 'quantity', 'displayName': 'Quantity'},
         'UnitPrice': {'columnName': 'unitPrice', 'displayName': 'Unit Price'},
-        'TotalAmount': {'columnName': 'lineTotal', 'displayName': 'Line Total'},
+        'AmountWithTax': {'columnName': 'totalItemPrice', 'displayName': 'Total Item Price'},
         'UOM': {'columnName': 'uom', 'displayName': 'Unit of Measure'}
     }
 }
