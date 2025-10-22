@@ -138,10 +138,10 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         )
 
         # Lambda execution role
-        lambda_role = iam.Role.from_role_arn(
-            self, f'{PROJECT_NAME}' + 'LambdaRole',
-            f'arn:aws:iam::{ACCOUNT_ID}:role/{PROJECT_NAME}LambdaRole'
-        )
+        # lambda_role = iam.Role.from_role_arn(
+        #     self, f'{PROJECT_NAME}' + 'LambdaRole',
+        #     f'arn:aws:iam::{ACCOUNT_ID}:role/{PROJECT_NAME}LambdaRole'
+        # )
         lambda_role = iam.Role(
             self,
             f'{PROJECT_NAME}-LiteDemo-LambdaRole',
@@ -149,7 +149,6 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSLambdaBasicExecutionRole'),
                 iam.ManagedPolicy.from_aws_managed_policy_name('AWSXRayDaemonWriteAccess'),
-                # Add Bedrock managed policy for full access
                 iam.ManagedPolicy.from_aws_managed_policy_name('AmazonBedrockFullAccess')
             ]
         )
