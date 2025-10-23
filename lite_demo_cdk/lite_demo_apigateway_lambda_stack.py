@@ -40,7 +40,7 @@ Functions:
 
 class LiteDemoApiGatewayLambdaStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, bda_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Import Lambda Layers from SSM Parameter Store
@@ -92,11 +92,13 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         }
         
         # S3 Processor specific env vars (for BDA)
+        bda_project_arn = bda_stack.project_arn if bda_stack else BDAMap[env]['PROJECT_ARN']
+
         s3_processor_env = {
             **common_env,
             'BDA_RUNTIME_ENDPOINT': 'https://bedrock-data-automation-runtime.us-east-1.amazonaws.com',
             'OUTPUT_BUCKET': s3_bucket_name,
-            'BDA_PROJECT_ARN': BDAMap[env]['PROJECT_ARN'],
+            'BDA_PROJECT_ARN': bda_project_arn,
             'BDA_PROFILE_ARN': BDAMap[env]['PROFILE_ARN']
         }
 
@@ -142,7 +144,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ],
             resources=[
                 # Specific project and profile
-                BDAMap[env]['PROJECT_ARN'],
+                bda_project_arn,
                 BDAMap[env]['PROFILE_ARN'],
                 # Wildcard for all BDA resources in us-east-1
                 'arn:aws:bedrock:us-east-1:*:data-automation-project/*',
