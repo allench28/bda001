@@ -208,60 +208,61 @@ def update_document_status(document_id, status, error_message=None):
 
 @tracer.capture_method
 def classify_document(markdown_content):
-    prompt = f"""
-<markdown_content>
-{markdown_content}
-</markdown_content>
+    return "po"
+#     prompt = f"""
+# <markdown_content>
+# {markdown_content}
+# </markdown_content>
 
-<task>
-1. Identify the document type from <markdown_content>
-2. return either invoice or po
-3. Output the JSON structure as shown in <output_format>, your response will be parsed by json.loads() which will not accept single quotes
-</task>
+# <task>
+# 1. Identify the document type from <markdown_content>
+# 2. return either invoice or po
+# 3. Output the JSON structure as shown in <output_format>, your response will be parsed by json.loads() which will not accept single quotes
+# </task>
 
-<descriptions>
-DOCUMENT TYPES AND KEY IDENTIFIERS:
-1. invoice - Primary identifiers: invoice number, vendor name, invoice date, customer/bill-to name
-   Secondary identifiers: total amount, tax amounts, payment terms
+# <descriptions>
+# DOCUMENT TYPES AND KEY IDENTIFIERS:
+# 1. invoice - Primary identifiers: invoice number, vendor name, invoice date, customer/bill-to name
+#    Secondary identifiers: total amount, tax amounts, payment terms
 
-2. PURCHASE ORDER (PO) - Primary identifiers: PO number, order date, vendor name
-   Secondary identifiers: delivery address, item quantities, prices
+# 2. PURCHASE ORDER (PO) - Primary identifiers: PO number, order date, vendor name
+#    Secondary identifiers: delivery address, item quantities, prices
 
-</descriptions>
+# </descriptions>
 
-<output_format>
-{{"documentType": invoice/po}}
-</output_format>
-"""
+# <output_format>
+# {{"documentType": invoice/po}}
+# </output_format>
+# """
 
-    bedrock_response = extraction_markdown_bedrock(prompt)
+#     bedrock_response = extraction_markdown_bedrock(prompt)
 
-    output_message = bedrock_response.get('output', {}).get('message', {})
-    content_blocks = output_message.get('content', [])
+#     output_message = bedrock_response.get('output', {}).get('message', {})
+#     content_blocks = output_message.get('content', [])
     
-    if not content_blocks:
-        logger.info(f"No content in Bedrock response")
-        return "invoice"
+#     if not content_blocks:
+#         logger.info(f"No content in Bedrock response")
+#         return "invoice"
     
-    response_text = content_blocks[0].get('text', '').strip()
+#     response_text = content_blocks[0].get('text', '').strip()
     
-    # Check if it's an error response
-    if response_text.lower().startswith('error:'):
-        logger.info(f"Bedrock classification failed: {response_text}")
-        return "invoice"
+#     # Check if it's an error response
+#     if response_text.lower().startswith('error:'):
+#         logger.info(f"Bedrock classification failed: {response_text}")
+#         return "invoice"
     
-    try:
-        # Parse JSON response
-        import json
-        response_json = json.loads(response_text)
-        document_type = response_json.get('documentType', 'invoice').lower()
+#     try:
+#         # Parse JSON response
+#         import json
+#         response_json = json.loads(response_text)
+#         document_type = response_json.get('documentType', 'invoice').lower()
         
-        logger.info(f"Document classified as: {document_type}")
-        return document_type
+#         logger.info(f"Document classified as: {document_type}")
+#         return document_type
         
-    except json.JSONDecodeError:
-        logger.warning(f"Failed to parse JSON response, using raw text: {response_text}")
-        return "invoice"
+#     except json.JSONDecodeError:
+#         logger.warning(f"Failed to parse JSON response, using raw text: {response_text}")
+#         return "invoice"
 
 
 
