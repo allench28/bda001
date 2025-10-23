@@ -1,10 +1,9 @@
 import os
 import boto3
 import json
-import time
 from aws_lambda_powertools import Logger, Tracer
 from decimal import Decimal
-from boto3.dynamodb.conditions import Attr, Key
+from boto3.dynamodb.conditions import Key
 
 DOCUMENT_TABLE = os.environ.get('DOCUMENTS_TABLE_NAME')
 
@@ -31,22 +30,8 @@ def lambda_handler(event, context):
             extracted_document_id = parameters.get('documentId')
                 
             extracted_document = get_document(extracted_document_id)
-            extracted_document_status = extracted_document.get('status')
+            return create_response(200, "Success", extracted_document)
 
-            max_retries = 30  # 5 minutes max
-            retries = 0
-
-            while extracted_document_status not in ['completed', 'error'] and retries < max_retries:
-                time.sleep(10)
-                extracted_document = get_document(extracted_document_id)
-                extracted_document_status = extracted_document.get('status')
-                retries += 1    
-
-
-            payload = format_resonse(extracted_document)
-
-            return create_response(200, "Success", payload)
-    
         else:
             raise Exception("ID is required")
                     
@@ -70,11 +55,6 @@ def get_document(document_id):
 
     existing_document = response.get('Item')
     return existing_document
-
-
-@tracer.capture_method
-def format_resonse(extracted_document):
-    return extracted_document
 
     
 @tracer.capture_method

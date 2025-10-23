@@ -43,7 +43,7 @@ lite_demo_dynamodb_stack = LiteDemoDynamoDBStack(
     "LiteDemoDynamoDBStack-{}".format(lite_demo_env),
     env=cdk.Environment(region='us-east-1')
 )
-LiteDemoS3BucketStack(
+lite_demo_s3_stack = LiteDemoS3BucketStack(
     app,
     "LiteDemoS3BucketStack-{}".format(lite_demo_env),
     env=cdk.Environment(region='us-east-1')
@@ -52,6 +52,7 @@ LiteDemoApiGatewayLambdaStack(
     app, 
     "LiteDemoApiGatewayLambdaStack-{}".format(lite_demo_env),
     dynamodb_stack=lite_demo_dynamodb_stack,
+    s3_stack=lite_demo_s3_stack,
     env=cdk.Environment(region='us-east-1')
 )
 

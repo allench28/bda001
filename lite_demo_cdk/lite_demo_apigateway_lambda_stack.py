@@ -40,7 +40,7 @@ Functions:
 
 class LiteDemoApiGatewayLambdaStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Import Lambda Layers from SSM Parameter Store
@@ -69,7 +69,17 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         get_document_resource = lite_demo_resource.add_resource('get-document')
 
         # Environment variables
-        s3_bucket_name = S3Map[env]['LITE_DEMO_BUCKET'].format(PROJECT_NAME.lower().replace('_', ''), RegionMap[env])
+        # Get S3 bucket name from S3 stack reference (unique name)
+        if s3_stack:
+            s3_bucket_name = s3_stack.bucket_name
+        else:
+            # Fallback: Read from SSM Parameter if stack reference not available
+            s3_bucket_name = ssm.StringParameter.from_string_parameter_name(
+                self, 
+                'LiteDemoBucketNameFromSSM',
+                f'/{PROJECT_NAME}/LiteDemo/S3BucketName'
+            ).string_value
+        
         documents_table_name = DynamoDBTableMap[env]['LITE_DEMO_DOCUMENTS'].format(PROJECT_NAME.lower().replace('_', '-'))
         
         common_env = {
