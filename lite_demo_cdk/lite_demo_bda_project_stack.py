@@ -49,7 +49,7 @@ class LiteDemoBDAProjectStack(Stack):
 
         # --- Nama project ---
         rand = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        project_name = f"{_kebab(PROJECT_NAME)}-bda-{rand}"
+        project_name = f"{_kebab(PROJECT_NAME)}-bda-{ENV_NAME}"
 
         # --- Standard Output Configuration (mengikuti struktur docs) ---
         # Fokus: Document modality saja, output Markdown, tanpa CSV/Generative/BBox.

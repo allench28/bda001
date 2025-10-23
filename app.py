@@ -21,10 +21,13 @@ from lite_demo_cdk.lite_demo_apigateway_lambda_stack import LiteDemoApiGatewayLa
 from lite_demo_cdk.lite_demo_s3_bucket_stack import LiteDemoS3BucketStack
 from lite_demo_cdk.lite_demo_bda_project_stack import LiteDemoBDAProjectStack
 from lite_demo_cdk.environment import env as lite_demo_env
+from lite_demo_cdk.environment import RegionMap
 
 app = cdk.App()
 
-AapBackendLambdaLayersAndRolesStack(app, "AapBackendLambdaLayersAndRolesStack-{}".format(env), env=cdk.Environment(region='us-east-1'))
+region = RegionMap[env]
+
+AapBackendLambdaLayersAndRolesStack(app, "AapBackendLambdaLayersAndRolesStack-{}".format(env), env=cdk.Environment(region=region))
 # AapBackendLambdaGeneralStack(app, "AapBackendLambdaGeneralStack-{}".format(env))
 # AapBackendLambdaDynamoDbStack(app, "AapBackendLambdaDynamoDbStack-{}".format(env))
 # AapBackendLambdaEventBridgeStack(app, "AapBackendLambdaEventBridgeStack-{}".format(env))
@@ -42,18 +45,18 @@ AapBackendLambdaLayersAndRolesStack(app, "AapBackendLambdaLayersAndRolesStack-{}
 lite_demo_dynamodb_stack = LiteDemoDynamoDBStack(
     app, 
     "LiteDemoDynamoDBStack-{}".format(lite_demo_env),
-    env=cdk.Environment(region='us-east-1')
+    env=cdk.Environment(region=region)
 )
 lite_demo_s3_stack = LiteDemoS3BucketStack(
     app,
     "LiteDemoS3BucketStack-{}".format(lite_demo_env),
-    env=cdk.Environment(region='us-east-1')
+    env=cdk.Environment(region=region)
 )
 lite_demo_bda_stack = LiteDemoBDAProjectStack(
     app,
     "LiteDemoBDAProjectStack-{}".format(lite_demo_env),
     s3_stack=lite_demo_s3_stack,
-    env=cdk.Environment(region='us-east-1')
+    env=cdk.Environment(region=region)
 )
 LiteDemoApiGatewayLambdaStack(
     app, 
@@ -61,7 +64,7 @@ LiteDemoApiGatewayLambdaStack(
     dynamodb_stack=lite_demo_dynamodb_stack,
     s3_stack=lite_demo_s3_stack,
     bda_stack=lite_demo_bda_stack,
-    env=cdk.Environment(region='us-east-1')
+    env=cdk.Environment(region=region)
 )
 
 app.synth()
