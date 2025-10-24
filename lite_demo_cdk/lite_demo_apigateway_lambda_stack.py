@@ -51,7 +51,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
 
         AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
             self, 'AwsPandasLayer',
-            "arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312:19"
+            f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
         )
 
         # Create API Gateway
