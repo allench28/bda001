@@ -71,6 +71,7 @@ LiteDemoApiGatewayLambdaStack(
 LiteDemoSftpStack(
     app, 
     "LiteDemoSftpStack-{}".format(lite_demo_env),
+    s3_stack=lite_demo_s3_stack,
     env=cdk.Environment(region=region)
 )
 
