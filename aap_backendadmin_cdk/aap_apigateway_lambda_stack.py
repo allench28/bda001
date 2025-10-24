@@ -98,8 +98,8 @@ class AapBackendAdminLambdaApiGatewayStack(Stack):
         # The code that defines your stack goes here
         
         AAPLambdaRole = iam.Role.from_role_arn(
-            self, 'AAPLambdaRoleMY', 
-            f'arn:aws:iam::{ACCOUNT_ID}:role/{PROJECT_NAME.title()}LambdaRoleMY'
+            self, f'AAPLambdaRoleMY-{self.region}', 
+            f'arn:aws:iam::{ACCOUNT_ID}:role/{PROJECT_NAME.title()}LambdaRoleMY{self.region}'
         )
 
         LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(

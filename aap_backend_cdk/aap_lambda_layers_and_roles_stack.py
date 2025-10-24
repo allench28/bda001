@@ -23,7 +23,7 @@ class AapBackendLambdaLayersAndRolesStack(Stack):
         # IAM Roles
         AapLambdaRole = iam.Role(
             self, f'{PROJECT_NAME}' + 'LambdaRoleMY',
-            role_name=f'{PROJECT_NAME.title()}' + 'LambdaRoleMY',
+            role_name=f'{PROJECT_NAME.title()}' + 'LambdaRoleMY' + self.region,
             assumed_by=iam.ServicePrincipal('lambda.amazonaws.com'),
             description='IAM Role to be used by Lambda Functions'
         )
@@ -77,7 +77,7 @@ class AapBackendLambdaLayersAndRolesStack(Stack):
 
         TextractAsyncRole = iam.Role(
             self, f'{PROJECT_NAME}' + 'TextractAsyncRoleMY',
-            role_name=f'{PROJECT_NAME.title()}' + 'TextractAsyncRoleMY',
+            role_name=f'{PROJECT_NAME.title()}' + 'TextractAsyncRoleMY' + self.region,
             assumed_by=iam.ServicePrincipal('textract.amazonaws.com'),
             description='IAM Role to be used by Textract Async Functions'
         )
@@ -93,7 +93,7 @@ class AapBackendLambdaLayersAndRolesStack(Stack):
 
         EmailAttachmentTextractRole = iam.Role(
             self, f'{PROJECT_NAME}' + 'EmailAttachmentTextractRoleMY',
-            role_name=f'{PROJECT_NAME.title()}' + 'EmailAttachmentTextractRoleMY',
+            role_name=f'{PROJECT_NAME.title()}' + 'EmailAttachmentTextractRoleMY' + self.region,
             assumed_by=iam.ServicePrincipal('states.amazonaws.com'),
             description='IAM Role to be used by Presales Step Functions'
         )
