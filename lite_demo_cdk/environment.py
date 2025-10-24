@@ -1,4 +1,6 @@
-env = 'dev'
+import os
+
+region = os.environ.get('REGION_NAME', 'us-east-1')
 
 AccountMap = {
     'dev': '954986424675',
@@ -7,7 +9,7 @@ AccountMap = {
 }
 
 RegionMap = {
-    'dev': 'us-east-1',
+    'dev': region,
     'staging': 'ap-southeast-1',
     'prod': 'ap-southeast-1'
 }
