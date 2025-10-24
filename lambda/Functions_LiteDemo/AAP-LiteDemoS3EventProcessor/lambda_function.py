@@ -32,6 +32,7 @@ BDA_RUNTIME_ENDPOINT = os.environ.get('BDA_RUNTIME_ENDPOINT')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 BDA_PROJECT_ARN = os.environ.get('BDA_PROJECT_ARN')
 BDA_PROFILE_ARN = os.environ.get('BDA_PROFILE_ARN')
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 BEDROCK_MODEL_ID = os.environ.get('BEDROCK_MODEL_ID', 'qwen.qwen3-235b-a22b-2507-v1:0')
 AWS_REGION = os.environ.get('REGION')
 
@@ -40,6 +41,7 @@ dynamodb = boto3.resource('dynamodb')
 s3_client = boto3.client('s3')
 bda_runtime = boto3.client('bedrock-data-automation-runtime', region_name=AWS_REGION, endpoint_url=BDA_RUNTIME_ENDPOINT)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-west-2')
+sns_client = boto3.client('sns')
 
 
 class ProcessingError(Exception):
@@ -112,7 +114,10 @@ def lambda_handler(event, context):
                     # step 4: master mappig on line items
                     extraction_result = perform_master_mapping(extraction_result, bucket)
                     
-                    # Step 5: Update DynamoDB with parsed results
+                    # Step 5: Check for mismatches and send SNS notification if needed
+                    check_and_notify_mismatches(document_id, extraction_result, file_name)
+                    
+                    # Step 6: Update DynamoDB with parsed results
                     update_document_with_results(document_id, extraction_result)
                     
                     processed_files.append({
@@ -945,4 +950,131 @@ def parse_bda_json_to_markdown(bda_output):
     logger.info(f"Successfully parsed markdown content: {len(markdown_content)} characters")
     
     return markdown_content
+
+
+@tracer.capture_method
+def check_and_notify_mismatches(document_id, extraction_result, file_name):
+    """
+    Check for processing mismatches and send SNS notification if found.
+    
+    Args:
+        document_id: Document identifier
+        extraction_result: Processed extraction result
+        file_name: Original file name
+    """
+    try:
+        mismatches = []
+        
+        # Check form data for buyer exceptions
+        form_data = extraction_result.get('data', {}).get('formData', [])
+        for field in form_data:
+            if field.get('assessException') and field.get('assessException') != "":
+                mismatches.append({
+                    'type': 'Buyer Validation',
+                    'field': field.get('displayName', field.get('columnName', 'Unknown')),
+                    'value': field.get('columnValue', ''),
+                    'issue': field.get('assessException')
+                })
+        
+        # Check line items for price mismatches and unknown items
+        table_data = extraction_result.get('data', {}).get('tableData', [])
+        for line_idx, line_item in enumerate(table_data, 1):
+            status_field = next((f for f in line_item if f.get('columnName') == 'itemStatus'), None)
+            if status_field:
+                status = status_field.get('columnValue', '')
+                if status in ['PRICE MISMATCH', 'UNKNOWN']:
+                    desc_field = next((f for f in line_item if f.get('columnName') == 'itemDescription'), None)
+                    price_field = next((f for f in line_item if f.get('columnName') == 'unitPrice'), None)
+                    
+                    mismatches.append({
+                        'type': 'Line Item Issue',
+                        'line': line_idx,
+                        'description': desc_field.get('columnValue', '') if desc_field else '',
+                        'price': price_field.get('columnValue', '') if price_field else '',
+                        'issue': status
+                    })
+        
+        # Send SNS notification if mismatches found
+        if mismatches and SNS_TOPIC_ARN:
+            send_mismatch_notification(document_id, file_name, mismatches)
+            logger.info(f"Sent mismatch notification for document {document_id}", extra={
+                'document_id': document_id,
+                'mismatch_count': len(mismatches)
+            })
+        
+    except Exception as e:
+        logger.error(f"Error checking mismatches: {str(e)}", extra={
+            'document_id': document_id,
+            'error': str(e)
+        })
+        # Don't raise - continue processing
+
+
+@tracer.capture_method
+def send_mismatch_notification(document_id, file_name, mismatches):
+    """
+    Send SNS notification for processing mismatches.
+    
+    Args:
+        document_id: Document identifier
+        file_name: Original file name
+        mismatches: List of mismatch details
+    """
+    try:
+        # Build notification message
+        subject = f"Document Processing Mismatch Alert - {file_name}"
+        
+        message_lines = [
+            f"Document Processing Mismatch Detected",
+            f"=====================================\n",
+            f"Document ID: {document_id}",
+            f"File Name: {file_name}",
+            f"Processing Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"Total Issues Found: {len(mismatches)}\n",
+            "Issue Details:"
+        ]
+        
+        for i, mismatch in enumerate(mismatches, 1):
+            message_lines.append(f"\n{i}. {mismatch['type']}:")
+            
+            if mismatch['type'] == 'Buyer Validation':
+                message_lines.extend([
+                    f"   Field: {mismatch['field']}",
+                    f"   Value: {mismatch['value']}",
+                    f"   Issue: {mismatch['issue']}"
+                ])
+            elif mismatch['type'] == 'Line Item Issue':
+                message_lines.extend([
+                    f"   Line: {mismatch['line']}",
+                    f"   Description: {mismatch['description']}",
+                    f"   Price: {mismatch['price']}",
+                    f"   Issue: {mismatch['issue']}"
+                ])
+        
+        message_lines.extend([
+            "\n\nPlease review the document processing results and take appropriate action.",
+            "\nThis is an automated notification from the Lite Demo Document Processing System."
+        ])
+        
+        message = "\n".join(message_lines)
+        
+        # Send SNS notification
+        response = sns_client.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Subject=subject,
+            Message=message
+        )
+        
+        logger.info(f"SNS notification sent successfully", extra={
+            'document_id': document_id,
+            'message_id': response.get('MessageId'),
+            'mismatch_count': len(mismatches)
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to send SNS notification: {str(e)}", extra={
+            'document_id': document_id,
+            'error': str(e)
+        })
+        # Don't raise - continue processing
 

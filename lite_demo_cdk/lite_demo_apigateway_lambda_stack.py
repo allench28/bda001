@@ -7,6 +7,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_lambda_event_sources as lambda_event_sources,
     aws_s3_notifications as s3n,
+    aws_sns as sns,
     Duration,
     Tags
 )
@@ -15,7 +16,8 @@ from constructs import Construct
 from .environment import *
 
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'LITE_DEMO')
-ACCOUNT_ID = os.environ.get('ACCOUNT_ID', '954986424675')
+# Account ID will be auto-detected from CDK context
+ACCOUNT_ID = os.environ.get('ACCOUNT_ID')
 
 """
 Lite Demo API Gateway Lambda Stack
@@ -44,19 +46,27 @@ Functions:
 
 class LiteDemoApiGatewayLambdaStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, bda_stack=None, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, bda_stack=None, sns_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Import Lambda Layers from SSM Parameter Store
-        LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(
-            self, 'LambdaBaseLayer', 
-            ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
-        )
+        # Import Lambda Layers - try SSM first, fallback to None
+        try:
+            LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(
+                self, 'LambdaBaseLayer', 
+                ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
+            )
+        except:
+            # Fallback: No custom layer
+            LambdaBaseLayer = None
 
-        AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
-            self, 'AwsPandasLayer',
-            f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
-        )
+        # Use AWS managed pandas layer (available in most regions)
+        try:
+            AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
+                self, 'AwsPandasLayer',
+                f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
+            )
+        except:
+            AwsPandasLayer = None
 
         # Create API Gateway
         api = apigateway.RestApi(
@@ -101,16 +111,26 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             'POWERTOOLS_LOG_LEVEL': 'INFO'
         }
         
+        # Get SNS Topic ARN
+        if sns_stack:
+            sns_topic_arn = sns_stack.topic_arn
+        else:
+            sns_topic_arn = ssm.StringParameter.from_string_parameter_name(
+                self,
+                'LiteDemoSNSTopicArnFromSSM',
+                f'/{PROJECT_NAME}/LiteDemo/SNSTopicArn'
+            ).string_value
+
         # S3 Processor specific env vars (for BDA)
         bda_project_arn = bda_stack.project_arn if bda_stack else BDAMap[env]['PROJECT_ARN']
-
 
         s3_processor_env = {
             **common_env,
             'BDA_RUNTIME_ENDPOINT': f'https://bedrock-data-automation-runtime.{self.region}.amazonaws.com',
             'OUTPUT_BUCKET': s3_bucket_name,
             'BDA_PROJECT_ARN': bda_project_arn,
-            'BDA_PROFILE_ARN': f'arn:aws:bedrock:{self.region}:{ACCOUNT_ID}:data-automation-profile/us.data-automation-v1',
+            'BDA_PROFILE_ARN': f'arn:aws:bedrock:{self.region}:{self.account}:data-automation-profile/us.data-automation-v1',
+            'SNS_TOPIC_ARN': sns_topic_arn,
             'REGION': self.region
         }
 
@@ -140,8 +160,8 @@ class LiteDemoApiGatewayLambdaStack(Stack):
                 'dynamodb:Scan'
             ],
             resources=[
-                f'arn:aws:dynamodb:{RegionMap[env]}:{AccountMap[env]}:table/{documents_table_name}',
-                f'arn:aws:dynamodb:{RegionMap[env]}:{AccountMap[env]}:table/{documents_table_name}/index/*'
+                f'arn:aws:dynamodb:{self.region}:{self.account}:table/{documents_table_name}',
+                f'arn:aws:dynamodb:{self.region}:{self.account}:table/{documents_table_name}/index/*'
             ]
         )
 
@@ -166,6 +186,17 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ]
         )
 
+        # IAM Policy for SNS operations
+        sns_policy = iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                'sns:Publish'
+            ],
+            resources=[
+                sns_topic_arn
+            ]
+        )
+
         # Lambda execution role
         # lambda_role = iam.Role.from_role_arn(
         #     self, f'{PROJECT_NAME}' + 'LambdaRole',
@@ -184,6 +215,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         lambda_role.add_to_policy(s3_policy)
         lambda_role.add_to_policy(dynamodb_policy)
         lambda_role.add_to_policy(bedrock_policy)
+        lambda_role.add_to_policy(sns_policy)
 
         # ===== Lambda Function 1: Generate S3 Upload Link =====
         lambda_generate_upload = lambda_.Function(

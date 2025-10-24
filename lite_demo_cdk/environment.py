@@ -1,16 +1,21 @@
 
-env = 'dev'
+import os
+
+env = os.environ.get('ENV', 'dev')
+
+# Force deployment to us-east-1 only
+REGION = 'us-east-1'
 
 AccountMap = {
-    'dev': '954986424675',
-    'staging': '',
-    'prod': ''
+    'dev': 'auto-detect',
+    'staging': 'auto-detect', 
+    'prod': 'auto-detect'
 }
 
 RegionMap = {
-    'dev': 'us-east-1',
-    'staging': 'ap-southeast-1',
-    'prod': 'ap-southeast-1'
+    'dev': REGION,
+    'staging': REGION,
+    'prod': REGION
 }
 
 S3Map = {
@@ -43,21 +48,22 @@ DynamoDBTableMap = {
     }
 }
 
+# BDA Configuration - ARNs will be built dynamically in the stack using self.account and self.region
 BDAMap = {
     'dev': {
-        'PROJECT_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-project/4342d60f9f81',
-        'PROFILE_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-profile/us.data-automation-v1'
+        'PROJECT_ARN': 'auto-generated-by-stack',
+        'PROFILE_ARN': 'auto-generated-by-stack'
     },
     'staging': {
-        'PROJECT_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-project/your-project-id',
-        'PROFILE_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-profile/your-profile-id'
+        'PROJECT_ARN': 'auto-generated-by-stack',
+        'PROFILE_ARN': 'auto-generated-by-stack'
     },
     'demo': {
-        'PROJECT_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-project/your-project-id',
-        'PROFILE_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-profile/your-profile-id'
+        'PROJECT_ARN': 'auto-generated-by-stack',
+        'PROFILE_ARN': 'auto-generated-by-stack'
     },
     'prod': {
-        'PROJECT_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-project/your-project-id',
-        'PROFILE_ARN': 'arn:aws:bedrock:us-east-1:954986424675:data-automation-profile/your-profile-id'
+        'PROJECT_ARN': 'auto-generated-by-stack',
+        'PROFILE_ARN': 'auto-generated-by-stack'
     }
 }

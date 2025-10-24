@@ -1,2 +1,0 @@
-from .document_type_prompt import generate_document_type_prompt
-from .document_data_prompt import generate_document_data_prompt
