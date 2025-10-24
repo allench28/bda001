@@ -24,7 +24,7 @@ class LiteDemoBDAProjectStack(Stack):
         bda_role = iam.Role(
             self,
             "BDARole",
-            role_name=f"{PROJECT_NAME}-BDA-Role-{ENV_NAME}",
+            role_name=f"{PROJECT_NAME}-BDA-Role-{ENV_NAME}-{self.region}",
             assumed_by=iam.ServicePrincipal("bedrock.amazonaws.com"),
             description="Service role for Bedrock Data Automation project",
         )
