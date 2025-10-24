@@ -404,6 +404,29 @@ class LiteDemoApiGatewayLambdaStack(Stack):
 
         # Store references
         self.api = api
+        # Upsert API URL to SSM Parameter Store using AwsCustomResource
+        from aws_cdk.custom_resources import AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId, AwsSdkCall
+        api_url_param = AwsCustomResource(
+            self,
+            'LiteDemoApiUrlGwUpsert',
+            on_update=AwsSdkCall(
+                service='SSM',
+                action='putParameter',
+                parameters={
+                    'Name': 'lite-demo-api-url-gw',
+                    'Value': api.url,
+                    'Type': 'String',
+                    'Overwrite': True,
+                    'Description': 'Lite Demo API Gateway URL',
+                    'Tier': 'Standard'
+                },
+                physical_resource_id=PhysicalResourceId.of('lite-demo-api-url-gw')
+            ),
+            policy=AwsCustomResourcePolicy.from_sdk_calls(resources=AwsCustomResourcePolicy.ANY_RESOURCE)
+        )
+
         self.lambda_generate_upload = lambda_generate_upload
         self.lambda_generate_download = lambda_generate_download
         self.lambda_s3_processor = lambda_s3_processor
+
+
