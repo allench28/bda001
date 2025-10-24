@@ -45,7 +45,7 @@ class LiteDemoSftpStack(Stack):
         transfer_role = iam.Role(
             self, "TransferRole",
             assumed_by=iam.ServicePrincipal("transfer.amazonaws.com"),
-            role_name="AWSTransferFamilySFTPUser"
+            role_name=f"AWSTransferFamilySFTPUser-{self.region}"
         )
         
         # Add S3 permissions to the role
