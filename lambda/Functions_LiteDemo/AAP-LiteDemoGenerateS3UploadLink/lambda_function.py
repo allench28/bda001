@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import boto3
+import re
 from datetime import datetime
 from aws_lambda_powertools import Logger, Tracer
 from botocore.client import Config
@@ -95,7 +96,7 @@ def lambda_handler(event, context):
 @tracer.capture_method
 def clean_file_name(file_name):
     """Clean file name by removing symbols and replacing spaces with underscores"""
-    import re
+    
     # Keep only alphanumeric, dots, hyphens, underscores
     cleaned = re.sub(r'[^a-zA-Z0-9._-]', '_', file_name)
     # Replace multiple underscores with single underscore

@@ -30,9 +30,13 @@ Functions:
    GET /lite-demo/generate-download-link
    OPTIONS /lite-demo/generate-download-link
 
-3. LiteDemoGenerateS3DownloadLink
+3. LiteDemoGetDocument
    GET /lite-demo/get-document
    OPTIONS /lite-demo/get-document
+
+4. LiteDemoGetResult
+   GET /lite-demo/get-result
+   OPTIONS /lite-demo/get-result
 
 4. LiteDemoS3EventProcessor (S3 Event Triggered)
    Automatically triggered when file uploaded to S3 input/ folder
@@ -71,6 +75,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         lite_demo_resource = api.root.add_resource('lite-demo')
         upload_link_resource = lite_demo_resource.add_resource('generate-upload-link')
         download_link_resource = lite_demo_resource.add_resource('generate-download-link')
+        get_result_resource = lite_demo_resource.add_resource('get-result')
         get_document_resource = lite_demo_resource.add_resource('get-document')
 
         # Environment variables
@@ -340,6 +345,80 @@ class LiteDemoApiGatewayLambdaStack(Stack):
 
         # CORS for Download Link
         get_document_resource.add_method(
+            'OPTIONS',
+            apigateway.MockIntegration(
+                integration_responses=[
+                    apigateway.IntegrationResponse(
+                        status_code='200',
+                        response_parameters={
+                            'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                            'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+                            'method.response.header.Access-Control-Allow-Origin': "'*'"
+                        }
+                    )
+                ],
+                passthrough_behavior=apigateway.PassthroughBehavior.NEVER,
+                request_templates={
+                    'application/json': '{"statusCode": 200}'
+                }
+            ),
+            method_responses=[
+                apigateway.MethodResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Headers': True,
+                        'method.response.header.Access-Control-Allow-Methods': True,
+                        'method.response.header.Access-Control-Allow-Origin': True
+                    }
+                )
+            ]
+        )
+
+        # ===== Lambda Function 4: Export Result =====
+        lambda_get_result = lambda_.Function(
+            self,
+            f'{PROJECT_NAME}-LiteDemoExportResult',
+            function_name=f'{PROJECT_NAME}-LiteDemoExportResult',
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler='lambda_function.lambda_handler',
+            code=lambda_.Code.from_asset('lambda/Functions_LiteDemo/AAP-LiteDemoExportResult'),
+            timeout=Duration.seconds(300),
+            memory_size=128,
+            environment=common_env,
+            layers=[LambdaBaseLayer, AwsPandasLayer],
+            role=lambda_role,
+            tracing=lambda_.Tracing.ACTIVE
+        )
+
+        # API Gateway Integration for Download Link
+        get_result_integration = apigateway.LambdaIntegration(
+            lambda_get_result,
+            proxy=True,
+            integration_responses=[
+                apigateway.IntegrationResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                )
+            ]
+        )
+
+        get_result_resource.add_method(
+            'GET',
+            get_result_integration,
+            method_responses=[
+                apigateway.MethodResponse(
+                    status_code='200',
+                    response_parameters={
+                        'method.response.header.Access-Control-Allow-Origin': True
+                    }
+                )
+            ]
+        )
+
+        # CORS for Download Link
+        get_result_resource.add_method(
             'OPTIONS',
             apigateway.MockIntegration(
                 integration_responses=[
