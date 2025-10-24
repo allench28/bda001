@@ -14,6 +14,9 @@ import os
 import json
 import time
 import boto3
+import re
+import pandas as pd
+from io import BytesIO
 from datetime import datetime
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.data_classes import S3Event
@@ -104,8 +107,11 @@ def lambda_handler(event, context):
                     
                     # Step 2: Send markdown to Converse API for structured extraction
                     extraction_result = extract_structured_data_with_converse(markdown_content, document_type, document_id)
+
+                    # step 4: master mappig on line items
+                    extraction_result = perform_master_mapping(extraction_result, bucket)
                     
-                    # Step 3: Update DynamoDB with parsed results
+                    # Step 5: Update DynamoDB with parsed results
                     update_document_with_results(document_id, extraction_result)
                     
                     processed_files.append({
@@ -495,6 +501,128 @@ def parse_converse_response(response_text, document_type='invoice'):
     except Exception as e:
         logger.error(f"Error parsing array response: {str(e)}")
         raise ProcessingError(f"Failed to parse array response: {str(e)}")
+
+
+@tracer.capture_method
+def perform_master_mapping(extraction_result, bucket):
+    data = extraction_result.get('data', {})
+    form_data = data.get('formData', [])
+    table_data = data.get('tableData', [])
+    
+    if not data:
+        return extraction_result
+    
+    try:
+        # Get master records and create lookup dictionaries
+        buyer_records = get_master_records_from_s3(bucket, "buyer")
+        product_records = get_master_records_from_s3(bucket, "product")
+        
+        buyer_lookup = {buyer['Buyer Name'].lower(): buyer for buyer in buyer_records if 'Buyer Name' in buyer}
+        product_lookup = {product['Product Description'].lower(): product for product in product_records if 'Product Description' in product}
+
+        logger.info(f'buyer_lookup: {buyer_lookup}')
+        logger.info(f'product_lookup: {product_lookup}')
+
+        # Process buyer validation
+        for entity in form_data:
+            if entity.get('columnName') == "buyerName":
+                buyer_name = entity.get('columnValue', '').lower()
+                entity['assessException'] = "" if buyer_name in buyer_lookup else "UNKNOWN BUYER"
+
+        # Process line items
+        for line_item in table_data:
+            # Add empty itemCode at first index
+            line_item.insert(0, {
+                'columnName': 'itemCode',
+                'columnValue': '',
+                'confidenceScore': 0,
+                'displayName': 'Item Code'
+            })
+            
+            item_desc_field = next((f for f in line_item if f.get('columnName') == "itemDescription"), None)
+            unit_price_field = next((f for f in line_item if f.get('columnName') == "unitPrice"), None)
+            
+            if item_desc_field:
+                item_desc = item_desc_field.get('columnValue', '').lower()
+                product = product_lookup.get(item_desc)
+                
+                if product:
+                    try:
+                        extracted_price = float(re.sub(r'[^0-9.-]', '', str(unit_price_field.get('columnValue', '')))) if unit_price_field else 0.0
+                        master_price = float(re.sub(r'[^0-9.-]', '', str(product.get('Unit Price (SGD)', 0))))
+                    except (ValueError, TypeError) as e:
+                        logger.error(f'error: {str(e)}')
+                        extracted_price = 0.0
+                        master_price = 0.0
+
+                    logger.info(f'extracted price: {extracted_price}, master price: {master_price}')
+                    
+                    status = "SUCCESS" if extracted_price == master_price else "PRICE MISMATCH"
+                    
+                    # Update itemCode at index 0
+                    line_item[0]['columnValue'] = product.get('Item Code', '')
+                    line_item[0]['confidenceScore'] = 100
+                    
+                    # Add status
+                    line_item.append({
+                        'columnName': 'itemStatus',
+                        'columnValue': status,
+                        'confidenceScore': 100,
+                        'displayName': 'Status'
+                    })
+                else:
+                    # Add status for unknown item (itemCode remains empty at index 0)
+                    line_item.append({
+                        'columnName': 'itemStatus',
+                        'columnValue': 'UNKNOWN',
+                        'confidenceScore': 100,
+                        'displayName': 'Status'
+                    })
+        
+        return extraction_result
+        
+    except Exception as e:
+        logger.error(f"Error in master mapping: {str(e)}")
+        for entity in form_data:
+            if entity.get('columnName') == "buyerName":
+                entity['assessException'] = "ERROR"
+        # Add empty item codes on error
+        for line_item in table_data:
+            line_item.append({
+                'columnName': 'itemCode',
+                'columnValue': '',
+                'confidenceScore': 0,
+                'displayName': 'Item Code'
+            })
+        return extraction_result
+
+def get_master_records_from_s3(bucket, doc_type):
+    """Get latest CSV file from aaa folder in S3"""
+
+    try:
+        response = s3_client.list_objects_v2(
+            Bucket=bucket,
+            Prefix=f'master_files/{doc_type}/',
+            Delimiter='/'
+        )
+        
+        xlsx_files = [obj for obj in response.get('Contents', []) if obj['Key'].endswith('.xlsx')]
+        if not xlsx_files:
+            return []
+        
+        # Get latest file
+        latest_file = max(xlsx_files, key=lambda x: x['LastModified'])
+        
+        # Download and read xlsx
+        obj = s3_client.get_object(Bucket=bucket, Key=latest_file['Key'])
+        df = pd.read_excel(BytesIO(obj['Body'].read()), header=1)
+        df = df.dropna(how='all')
+
+        return df.to_dict('records')
+        
+    except Exception as e:
+        logger.error(f"Error getting CSV from S3: {str(e)}")
+        return []
 
 
 @tracer.capture_method

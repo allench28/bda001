@@ -49,6 +49,11 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
         )
 
+        AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
+            self, 'AwsPandasLayer',
+            "arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312:19"
+        )
+
         # Create API Gateway
         api = apigateway.RestApi(
             self, 
@@ -375,7 +380,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.minutes(5),
             memory_size=1024,
             environment=s3_processor_env,
-            layers=[LambdaBaseLayer],
+            layers=[LambdaBaseLayer, AwsPandasLayer],
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )

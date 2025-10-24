@@ -27,9 +27,7 @@ QWEN_ID = "qwen.qwen3-235b-a22b-2507-v1:0"
 def extraction_markdown_bedrock(prompt_data):
     """Process text/markdown content with Bedrock using converse API"""
     logger.info(f"Starting Bedrock converse call for markdown extraction")
-    
-    start_time = time.time()
-    
+        
     try:
         model_response = BEDROCK_CLIENT.converse(
             modelId=QWEN_ID,
