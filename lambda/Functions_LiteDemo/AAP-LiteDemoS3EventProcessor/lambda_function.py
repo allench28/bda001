@@ -33,11 +33,12 @@ OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 BDA_PROJECT_ARN = os.environ.get('BDA_PROJECT_ARN')
 BDA_PROFILE_ARN = os.environ.get('BDA_PROFILE_ARN')
 BEDROCK_MODEL_ID = os.environ.get('BEDROCK_MODEL_ID', 'qwen.qwen3-235b-a22b-2507-v1:0')
+AWS_REGION = os.environ.get('REGION')
 
 # AWS Clients
 dynamodb = boto3.resource('dynamodb')
 s3_client = boto3.client('s3')
-bda_runtime = boto3.client('bedrock-data-automation-runtime', region_name='us-east-1', endpoint_url=BDA_RUNTIME_ENDPOINT)
+bda_runtime = boto3.client('bedrock-data-automation-runtime', region_name=AWS_REGION, endpoint_url=BDA_RUNTIME_ENDPOINT)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-west-2')
 
 

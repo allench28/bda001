@@ -15,7 +15,7 @@ from constructs import Construct
 from .environment import *
 
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'LITE_DEMO')
-ACCOUNT_ID = os.environ.get('ACCOUNT_ID', '')
+ACCOUNT_ID = os.environ.get('ACCOUNT_ID', '954986424675')
 
 """
 Lite Demo API Gateway Lambda Stack
@@ -104,12 +104,14 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         # S3 Processor specific env vars (for BDA)
         bda_project_arn = bda_stack.project_arn if bda_stack else BDAMap[env]['PROJECT_ARN']
 
+
         s3_processor_env = {
             **common_env,
-            'BDA_RUNTIME_ENDPOINT': 'https://bedrock-data-automation-runtime.us-east-1.amazonaws.com',
+            'BDA_RUNTIME_ENDPOINT': f'https://bedrock-data-automation-runtime.{self.region}.amazonaws.com',
             'OUTPUT_BUCKET': s3_bucket_name,
             'BDA_PROJECT_ARN': bda_project_arn,
-            'BDA_PROFILE_ARN': BDAMap[env]['PROFILE_ARN']
+            'BDA_PROFILE_ARN': f'arn:aws:bedrock:{self.region}:{ACCOUNT_ID}:data-automation-profile/us.data-automation-v1',
+            'REGION': self.region
         }
 
         # IAM Policy for S3 operations
