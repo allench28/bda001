@@ -20,6 +20,7 @@ from lite_demo_cdk.lite_demo_dynamodb_stack import LiteDemoDynamoDBStack
 from lite_demo_cdk.lite_demo_apigateway_lambda_stack import LiteDemoApiGatewayLambdaStack
 from lite_demo_cdk.lite_demo_s3_bucket_stack import LiteDemoS3BucketStack
 from lite_demo_cdk.lite_demo_bda_project_stack import LiteDemoBDAProjectStack
+from lite_demo_cdk.lite_demo_sftp_stack import LiteDemoSftpStack
 from lite_demo_cdk.environment import env as lite_demo_env
 from lite_demo_cdk.environment import RegionMap
 
@@ -64,6 +65,12 @@ LiteDemoApiGatewayLambdaStack(
     dynamodb_stack=lite_demo_dynamodb_stack,
     s3_stack=lite_demo_s3_stack,
     bda_stack=lite_demo_bda_stack,
+    env=cdk.Environment(region=region)
+)
+
+LiteDemoSftpStack(
+    app, 
+    "LiteDemoSftpStack-{}".format(lite_demo_env),
     env=cdk.Environment(region=region)
 )
 
