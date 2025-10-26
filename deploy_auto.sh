@@ -64,7 +64,7 @@ aws ssm put-parameter \
 
 # Deploy backend stacks first (excludes frontend)
 echo "📦 Deploying backend stacks..."
-cdk deploy --all --require-approval never --exclusively LiteDemoDynamoDBStack-${ENV} LiteDemoS3BucketStack-${ENV} LiteDemoBDAProjectStack-${ENV} LiteDemoSNSStack-${ENV} LiteDemoApiGatewayLambdaStack-${ENV} LiteDemoSftpStack-${ENV}
+cdk deploy LiteDemoDynamoDBStack-${ENV} LiteDemoS3BucketStack-${ENV} LiteDemoBDAProjectStack-${ENV} LiteDemoSNSStack-${ENV} LiteDemoApiGatewayLambdaStack-${ENV} LiteDemoSftpStack-${ENV} --require-approval never
 
 # Build frontend AFTER backend is deployed
 echo "🎨 Building frontend with current API URL..."
