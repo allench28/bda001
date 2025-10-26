@@ -1,0 +1,24 @@
+/* PDF Preview Component Styles */
+.react-pdf__Document {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  max-width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.react-pdf__Page__canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+.react-pdf__Page__textContent {
+  max-width: 100%;
+}
+
+.react-pdf__Page__annotations {
+  max-width: 100%;
+}
