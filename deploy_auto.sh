@@ -80,15 +80,31 @@ API_URL=$(aws ssm get-parameter --name "lite-demo-api-url-gw" --region $REGION -
 S3_BUCKET=$(aws ssm get-parameter --name "/${PROJECT_NAME}/LiteDemo/S3BucketName" --region $REGION --query "Parameter.Value" --output text 2>/dev/null || echo "Not available yet")
 SNS_TOPIC=$(aws ssm get-parameter --name "/${PROJECT_NAME}/LiteDemo/SNSTopicArn" --region $REGION --query "Parameter.Value" --output text 2>/dev/null || echo "Not available yet")
 
+# Get CloudFront URL from Frontend stack
+CLOUDFRONT_URL=$(aws cloudformation describe-stacks --stack-name "LiteDemoFrontendStack-${ENV}" --region $REGION --query "Stacks[0].Outputs[?OutputKey=='CloudFrontURL'].OutputValue" --output text 2>/dev/null || echo "Not available yet")
+
+# Get SFTP details from SFTP stack
+SFTP_ENDPOINT=$(aws cloudformation describe-stacks --stack-name "LiteDemoSftpStack-${ENV}" --region $REGION --query "Stacks[0].Outputs[?OutputKey=='SftpEndpoint'].OutputValue" --output text 2>/dev/null || echo "Not available yet")
+SFTP_USERNAME=$(aws cloudformation describe-stacks --stack-name "LiteDemoSftpStack-${ENV}" --region $REGION --query "Stacks[0].Outputs[?OutputKey=='SftpUsername'].OutputValue" --output text 2>/dev/null || echo "Not available yet")
+
 echo "🌐 API Gateway URL: $API_URL"
 echo "🪣 S3 Bucket: $S3_BUCKET"
 echo "📧 SNS Topic: $SNS_TOPIC"
+echo "☁️  CloudFront URL: $CLOUDFRONT_URL"
+echo "💾 SFTP Endpoint: $SFTP_ENDPOINT"
+echo "👤 SFTP Username: $SFTP_USERNAME"
 
 echo ""
 echo "🔧 Next Steps:"
-echo "1. Subscribe to SNS topic for notifications:"
+echo "1. Access Web Portal:"
+echo "   $CLOUDFRONT_URL"
+echo ""
+echo "2. Subscribe to SNS topic for notifications:"
 echo "   aws sns subscribe --topic-arn $SNS_TOPIC --protocol email --notification-endpoint your-email@example.com --region $REGION"
-echo "2. Upload test document to trigger processing:"
-echo "   Upload PDF to: s3://$S3_BUCKET/input/{documentId}/file.pdf"
-echo "3. Check CloudWatch Logs for Lambda execution details"
-echo "4. Access frontend (if deployed): Check CloudFront URL in stack outputs"
+echo ""
+echo "3. Upload master data files via SFTP:"
+echo "   sftp -i <key-file-path/key-name.pem> $SFTP_USERNAME@$SFTP_ENDPOINT"
+echo "   put buyer_master.xlsx buyer/buyer_master.xlsx"
+echo "   put product_master.xlsx product/product_master.xlsx"
+echo ""
+echo "4. Check CloudWatch Logs for Lambda execution details"
