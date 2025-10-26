@@ -31,8 +31,8 @@ API_URL=$(aws ssm get-parameter --name "lite-demo-api-url-gw" --region us-east-1
 
 if [ -n "$API_URL" ]; then
     echo "✅ API URL found: $API_URL"
-    # Create .env file with API URL
-    echo "REACT_APP_API_BASE_URL=${API_URL}lite-demo" > .env
+    # Create .env file with API URL (SSM already includes full path with /lite-demo)
+    echo "REACT_APP_API_BASE_URL=${API_URL}" > .env
 else
     echo "⚠️  API URL not found in SSM, using default"
 fi
