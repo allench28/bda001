@@ -540,7 +540,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
                 },
                 physical_resource_id=PhysicalResourceId.of('lite-demo-api-url-gw')
             ),
-            policy=AwsCustomResourcePolicy.from_sdk_calls(resources=AwsCustomResourcePolicy.ANY_RESOURCE)
+            policy=AwsCustomResourcePolicy.from_sdk_calls(resources=["*"])
         )
 
         self.lambda_generate_upload = lambda_generate_upload
