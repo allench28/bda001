@@ -87,10 +87,9 @@ CLOUDFRONT_URL=$(aws cloudformation describe-stacks --stack-name "LiteDemoFronte
 SFTP_ENDPOINT=$(aws cloudformation describe-stacks --stack-name "LiteDemoSftpStack-${ENV}" --region $REGION --query "Stacks[0].Outputs[?OutputKey=='SftpEndpoint'].OutputValue" --output text 2>/dev/null || echo "Not available yet")
 SFTP_USERNAME=$(aws cloudformation describe-stacks --stack-name "LiteDemoSftpStack-${ENV}" --region $REGION --query "Stacks[0].Outputs[?OutputKey=='SftpUsername'].OutputValue" --output text 2>/dev/null || echo "Not available yet")
 
-echo "🌐 API Gateway URL: $API_URL"
 echo "🪣 S3 Bucket: $S3_BUCKET"
 echo "📧 SNS Topic: $SNS_TOPIC"
-echo "☁️  CloudFront URL: $CLOUDFRONT_URL"
+echo "☁️ CloudFront URL: $CLOUDFRONT_URL"
 echo "💾 SFTP Endpoint: $SFTP_ENDPOINT"
 echo "👤 SFTP Username: $SFTP_USERNAME"
 
@@ -104,7 +103,7 @@ echo "   aws sns subscribe --topic-arn $SNS_TOPIC --protocol email --notificatio
 echo ""
 echo "3. Upload master data files via SFTP:"
 echo "   sftp -i <key-file-path/key-name.pem> $SFTP_USERNAME@$SFTP_ENDPOINT"
-echo "   put buyer_master.xlsx buyer/buyer_master.xlsx"
-echo "   put product_master.xlsx product/product_master.xlsx"
+echo "   put <file-path> buyer/buyer_master_data.xlsx"
+echo "   put <file-path> product/productcatalog.xlsx"
 echo ""
 echo "4. Check CloudWatch Logs for Lambda execution details"
