@@ -49,15 +49,17 @@ class LiteDemoApiGatewayLambdaStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, bda_stack=None, sns_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Import Lambda Layers - try SSM first, fallback to None
+        # Import Lambda Layers - try SSM first, fallback to empty list
+        layers = []
         try:
             LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(
                 self, 'LambdaBaseLayer', 
                 ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
             )
+            layers.append(LambdaBaseLayer)
         except:
             # Fallback: No custom layer
-            LambdaBaseLayer = None
+            pass
 
         # Use AWS managed pandas layer (available in most regions)
         try:
@@ -65,8 +67,9 @@ class LiteDemoApiGatewayLambdaStack(Stack):
                 self, 'AwsPandasLayer',
                 f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
             )
+            pandas_layers = layers + [AwsPandasLayer]
         except:
-            AwsPandasLayer = None
+            pandas_layers = layers
 
         # Create API Gateway
         api = apigateway.RestApi(
@@ -219,7 +222,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.seconds(30),
             memory_size=256,
             environment=common_env,
-            layers=[LambdaBaseLayer],
+            layers=layers,
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )
@@ -293,7 +296,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.seconds(30),
             memory_size=256,
             environment=common_env,
-            layers=[LambdaBaseLayer],
+            layers=layers,
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )
@@ -336,7 +339,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.seconds(300),
             memory_size=128,
             environment=common_env,
-            layers=[LambdaBaseLayer],
+            layers=layers,
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )
@@ -410,7 +413,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.seconds(300),
             memory_size=128,
             environment=common_env,
-            layers=[LambdaBaseLayer, AwsPandasLayer],
+            layers=pandas_layers,
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )
@@ -484,7 +487,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
             timeout=Duration.minutes(5),
             memory_size=1024,
             environment=s3_processor_env,
-            layers=[LambdaBaseLayer, AwsPandasLayer],
+            layers=pandas_layers,
             role=lambda_role,
             tracing=lambda_.Tracing.ACTIVE
         )
