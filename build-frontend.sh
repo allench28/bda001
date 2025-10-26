@@ -25,6 +25,18 @@ fi
 
 cd lite.frontend.web
 
+# Get API Gateway URL from SSM
+echo "🔗 Getting API Gateway URL..."
+API_URL=$(aws ssm get-parameter --name "lite-demo-api-url-gw" --region us-east-1 --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+if [ -n "$API_URL" ]; then
+    echo "✅ API URL found: $API_URL"
+    # Create .env file with API URL
+    echo "REACT_APP_API_BASE_URL=${API_URL}lite-demo" > .env
+else
+    echo "⚠️  API URL not found in SSM, using default"
+fi
+
 # Install dependencies
 echo "📦 Installing npm dependencies..."
 npm install
