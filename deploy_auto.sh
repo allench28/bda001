@@ -62,13 +62,17 @@ aws ssm put-parameter \
   --region $REGION \
   --overwrite 2>/dev/null || echo "   Parameter already exists or created"
 
-# Build frontend
-echo "🎨 Building frontend..."
+# Deploy backend stacks first (excludes frontend)
+echo "📦 Deploying backend stacks..."
+cdk deploy --all --require-approval never --exclusively LiteDemoDynamoDBStack-${ENV} LiteDemoS3BucketStack-${ENV} LiteDemoBDAProjectStack-${ENV} LiteDemoSNSStack-${ENV} LiteDemoApiGatewayLambdaStack-${ENV} LiteDemoSftpStack-${ENV}
+
+# Build frontend AFTER backend is deployed
+echo "🎨 Building frontend with current API URL..."
 ./build-frontend.sh
 
-# Deploy stacks
-echo "📦 Deploying stacks..."
-cdk deploy --all --require-approval never
+# Deploy frontend stack
+echo "📦 Deploying frontend stack..."
+cdk deploy LiteDemoFrontendStack-${ENV} --require-approval never
 
 echo ""
 echo "✅ Deployment completed successfully!"
