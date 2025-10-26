@@ -49,8 +49,17 @@ class LiteDemoApiGatewayLambdaStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, dynamodb_stack=None, s3_stack=None, bda_stack=None, sns_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Import Lambda Layers - try SSM first, fallback to empty list
+        # Import Lambda Layers
         layers = []
+        
+        # AWS Lambda PowerTools Layer (managed by AWS)
+        powertools_layer = lambda_.LayerVersion.from_layer_version_arn(
+            self, 'PowerToolsLayer',
+            f"arn:aws:lambda:{self.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:68"
+        )
+        layers.append(powertools_layer)
+        
+        # Try custom layer from SSM
         try:
             layer_arn = ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
             if layer_arn and layer_arn.startswith('arn:aws:lambda:'):
@@ -59,15 +68,12 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         except:
             pass
 
-        # Use AWS managed pandas layer (available in most regions)
-        try:
-            AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
-                self, 'AwsPandasLayer',
-                f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
-            )
-            pandas_layers = layers + [AwsPandasLayer]
-        except:
-            pandas_layers = layers
+        # AWS managed pandas layer
+        AwsPandasLayer = lambda_.LayerVersion.from_layer_version_arn(
+            self, 'AwsPandasLayer',
+            f"arn:aws:lambda:{self.region}:336392948345:layer:AWSSDKPandas-Python312:19"
+        )
+        pandas_layers = layers + [AwsPandasLayer]
 
         # Create API Gateway
         api = apigateway.RestApi(
