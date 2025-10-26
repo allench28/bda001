@@ -41,7 +41,7 @@ lite_demo_sns_stack = LiteDemoSNSStack(
     "LiteDemoSNSStack-{}".format(env),
     env=cdk.Environment(region=region)
 )
-LiteDemoApiGatewayLambdaStack(
+lite_demo_lambda_stack = LiteDemoApiGatewayLambdaStack(
     app, 
     "LiteDemoApiGatewayLambdaStack-{}".format(env),
     dynamodb_stack=lite_demo_dynamodb_stack,
@@ -58,10 +58,13 @@ LiteDemoSftpStack(
     env=cdk.Environment(region=region)
 )
 
-LiteDemoFrontendStack(
+lite_demo_frontend_stack = LiteDemoFrontendStack(
     app,
     "LiteDemoFrontendStack-{}".format(env),
     env=cdk.Environment(region=region)
 )
+
+# Ensure frontend deploys AFTER Lambda/API Gateway
+lite_demo_frontend_stack.add_dependency(lite_demo_lambda_stack)
 
 app.synth()
