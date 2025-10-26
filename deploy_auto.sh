@@ -62,15 +62,6 @@ aws ssm put-parameter \
   --region $REGION \
   --overwrite 2>/dev/null || echo "   Parameter already exists or created"
 
-# Build frontend
-echo "🎨 Building frontend..."
-if [ -x "./build-frontend.sh" ]; then
-    ./build-frontend.sh
-else
-    chmod +x build-frontend.sh
-    ./build-frontend.sh
-fi
-
 # Deploy stacks
 echo "📦 Deploying stacks..."
 cdk deploy --all --require-approval never

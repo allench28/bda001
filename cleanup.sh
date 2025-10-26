@@ -13,8 +13,6 @@ echo "  - API Gateway"
 echo "  - DynamoDB tables"
 echo "  - S3 buckets (and all contents)"
 echo "  - SNS topics"
-echo "  - CloudFront distribution"
-echo "  - Frontend S3 bucket"
 echo "  - IAM roles and policies"
 echo "  - SSM parameters"
 echo ""
@@ -65,13 +63,6 @@ if aws s3 ls "s3://${BUCKET_NAME}" 2>/dev/null; then
     echo "   Emptying bucket: ${BUCKET_NAME}"
     aws s3 rm "s3://${BUCKET_NAME}" --recursive --region $REGION || true
 fi
-
-# Empty frontend bucket
-echo "   Checking for frontend buckets..."
-for bucket in $(aws s3 ls --region $REGION | grep "litedemofrontendstack" | awk '{print $3}'); do
-    echo "   Emptying frontend bucket: ${bucket}"
-    aws s3 rm "s3://${bucket}" --recursive --region $REGION || true
-done
 
 # Destroy CDK stacks
 echo ""

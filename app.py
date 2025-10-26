@@ -10,7 +10,6 @@ from lite_demo_cdk.lite_demo_s3_bucket_stack import LiteDemoS3BucketStack
 from lite_demo_cdk.lite_demo_bda_project_stack import LiteDemoBDAProjectStack
 from lite_demo_cdk.lite_demo_sns_stack import LiteDemoSNSStack
 from lite_demo_cdk.lite_demo_sftp_stack import LiteDemoSftpStack
-from lite_demo_cdk.lite_demo_frontend_stack import LiteDemoFrontendStack
 from lite_demo_cdk.environment import env, RegionMap
 
 app = cdk.App()
@@ -55,12 +54,6 @@ LiteDemoSftpStack(
     app, 
     "LiteDemoSftpStack-{}".format(env),
     s3_stack=lite_demo_s3_stack,
-    env=cdk.Environment(region=region)
-)
-
-LiteDemoFrontendStack(
-    app,
-    "LiteDemoFrontendStack-{}".format(env),
     env=cdk.Environment(region=region)
 )
 
