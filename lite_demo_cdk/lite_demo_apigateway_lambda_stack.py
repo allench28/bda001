@@ -174,16 +174,7 @@ class LiteDemoApiGatewayLambdaStack(Stack):
                 'bedrock:InvokeModel',
                 'bedrock:InvokeModelWithResponseStream'
             ],
-            resources=[
-                # Specific project and profile
-                bda_project_arn,
-                BDAMap[env]['PROFILE_ARN'],
-                # Wildcard for all BDA resources in us-east-1
-                'arn:aws:bedrock:us-east-1:*:data-automation-project/*',
-                'arn:aws:bedrock:us-east-1:*:data-automation-profile/*',
-                # Wildcard for foundation models (if needed)
-                'arn:aws:bedrock:*::foundation-model/*'
-            ]
+            resources=['*']  # Use wildcard for Bedrock permissions
         )
 
         # IAM Policy for SNS operations
