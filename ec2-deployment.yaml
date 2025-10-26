@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 instance for CDK deployment with required IAM permissions'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    Description: EC2 instance type
+    AllowedValues:
+      - t3.small
+  
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access (optional)
+    Default: ''
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Conditions:
+  HasKeyPair: !Not [!Equals [!Ref KeyPairName, '']]
+
+Resources:
+  # IAM Role for EC2 with required permissions
+  CDKDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-CDKDeploymentRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: CDKDeploymentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                Resource: '*'
+
+  # Instance Profile
+  CDKDeploymentInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref CDKDeploymentRole
+
+  # Security Group
+  CDKDeploymentSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for CDK deployment EC2
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-SG'
+
+  # EC2 Instance
+  CDKDeploymentInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      IamInstanceProfile: !Ref CDKDeploymentInstanceProfile
+      SecurityGroupIds:
+        - !Ref CDKDeploymentSecurityGroup
+      KeyName: !If [HasKeyPair, !Ref KeyPairName, !Ref 'AWS::NoValue']
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-CDK-Deployment'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Log output
+          exec > >(tee /var/log/user-data.log)
+          exec 2>&1
+          
+          echo "Starting CDK deployment setup..."
+          
+          # Update system
+          yum update -y
+          
+          # Install Node.js 18
+          curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+          yum install -y nodejs
+          
+          # Install Python and dependencies
+          yum install -y python3 python3-pip git unzip
+          
+          # Install AWS CDK
+          npm install -g aws-cdk
+          
+          # Install AWS CLI v2 (if not already installed)
+          if ! command -v aws &> /dev/null; then
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              ./aws/install
+              rm -rf awscliv2.zip aws/
+          fi
+          
+          # Clone repository to ec2-user home
+          cd /home/ec2-user
+          sudo -u ec2-user git clone https://github.com/allench28/bda001.git
+          cd bda001
+          
+          # Setup Python virtual environment
+          sudo -u ec2-user python3 -m venv .venv
+          sudo -u ec2-user bash -c 'source .venv/bin/activate && pip install -r requirements.txt'
+          
+          # Create deployment script
+          cat > /home/ec2-user/deploy.sh << 'EOF'
+          #!/bin/bash
+          cd /home/ec2-user/bda001
+          source .venv/bin/activate
+          ./deploy_auto.sh
+          EOF
+          
+          chmod +x /home/ec2-user/deploy.sh
+          chown ec2-user:ec2-user /home/ec2-user/deploy.sh
+          
+          # Create cleanup script
+          cat > /home/ec2-user/cleanup.sh << 'EOF'
+          #!/bin/bash
+          cd /home/ec2-user/bda001
+          source .venv/bin/activate
+          ./cleanup.sh
+          EOF
+          
+          chmod +x /home/ec2-user/cleanup.sh
+          chown ec2-user:ec2-user /home/ec2-user/cleanup.sh
+          
+          # Create README
+          cat > /home/ec2-user/README.txt << 'EOF'
+          CDK Deployment Instance Ready!
+          
+          To deploy the CDK stacks:
+          1. SSH into this instance
+          2. Run: ./deploy.sh
+          
+          To cleanup all resources:
+          1. Run: ./cleanup.sh
+          
+          Manual deployment:
+          cd bda001
+          source .venv/bin/activate
+          ./deploy_auto.sh
+          EOF
+          
+          chown ec2-user:ec2-user /home/ec2-user/README.txt
+          
+          echo "Setup complete! Instance ready for CDK deployment."
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref CDKDeploymentInstance
+  
+  PublicIP:
+    Description: Public IP address
+    Value: !GetAtt CDKDeploymentInstance.PublicIp
+  
+  SSHCommand:
+    Description: SSH command to connect
+    Value: !Sub 'ssh -i your-key.pem ec2-user@${CDKDeploymentInstance.PublicIp}'
+  
+  DeploymentCommand:
+    Description: Command to run after SSH
+    Value: './deploy.sh'
