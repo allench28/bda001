@@ -14,3 +14,7 @@ cdk.out
 
 *.pdf
 upload_to_s3.py
+# Frontend
+lite.frontend.web/node_modules/
+lite.frontend.web/build/
+lite.frontend.web/.env

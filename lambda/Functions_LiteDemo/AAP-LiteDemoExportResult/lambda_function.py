@@ -326,7 +326,8 @@ def generate_xlsx(extracted_document):
     form_df = pd.DataFrame([{
         'Field': item['displayName'],
         'Value': item['columnValue'],
-        'Confidence Score': item['confidenceScore']
+        'Confidence Score': item['confidenceScore'],
+        'Assess Exception': item.get('assessException', '')
     } for item in form_data])
     
     # Create tableData sheet
