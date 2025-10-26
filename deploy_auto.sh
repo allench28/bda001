@@ -62,6 +62,11 @@ aws ssm put-parameter \
   --region $REGION \
   --overwrite 2>/dev/null || echo "   Parameter already exists or created"
 
+# Create placeholder build folder for CDK synth (will be replaced with real build)
+echo "📝 Creating placeholder build folder..."
+mkdir -p lite.frontend.web/build
+echo "<!DOCTYPE html><html><body>Placeholder</body></html>" > lite.frontend.web/build/index.html
+
 # Deploy backend stacks first (excludes frontend)
 echo "📦 Deploying backend stacks..."
 cdk deploy LiteDemoDynamoDBStack-${ENV} LiteDemoS3BucketStack-${ENV} LiteDemoBDAProjectStack-${ENV} LiteDemoSNSStack-${ENV} LiteDemoApiGatewayLambdaStack-${ENV} LiteDemoSftpStack-${ENV} --require-approval never
@@ -70,7 +75,7 @@ cdk deploy LiteDemoDynamoDBStack-${ENV} LiteDemoS3BucketStack-${ENV} LiteDemoBDA
 echo "🎨 Building frontend with current API URL..."
 ./build-frontend.sh
 
-# Deploy frontend stack
+# Deploy frontend stack with real build
 echo "📦 Deploying frontend stack..."
 cdk deploy LiteDemoFrontendStack-${ENV} --require-approval never
 
