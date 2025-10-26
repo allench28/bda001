@@ -47,6 +47,15 @@ if ! aws cloudformation describe-stacks --stack-name CDKToolkit --region $REGION
     cdk bootstrap aws://$ACCOUNT_ID/$REGION
 fi
 
+# Create required SSM parameters
+echo "📝 Creating required SSM parameters..."
+aws ssm put-parameter \
+  --name "AAP-LambdaBaseLayerArn" \
+  --value "none" \
+  --type "String" \
+  --region $REGION \
+  --overwrite 2>/dev/null || echo "   Parameter already exists or created"
+
 # Deploy stacks
 echo "📦 Deploying stacks..."
 cdk deploy --all --require-approval never
