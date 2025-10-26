@@ -35,10 +35,13 @@ echo ""
 if [ ! -d ".venv" ]; then
     echo "🐍 Creating Python virtual environment..."
     python3 -m venv .venv
+    echo "📦 Installing Python dependencies..."
+    source .venv/bin/activate
+    pip install -r requirements.txt
+else
+    echo "✅ Virtual environment exists"
+    source .venv/bin/activate
 fi
-
-source .venv/bin/activate
-pip install -r requirements.txt
 
 # Bootstrap CDK if needed
 echo "🔧 Checking CDK bootstrap..."

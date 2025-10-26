@@ -103,7 +103,7 @@ Resources:
           exec > >(tee /var/log/user-data.log)
           exec 2>&1
           
-          echo "Starting CDK deployment setup..."
+          echo "Installing required packages for CDK deployment..."
           
           # Update system
           yum update -y
@@ -126,57 +126,7 @@ Resources:
               rm -rf awscliv2.zip aws/
           fi
           
-          # Clone repository to ec2-user home
-          cd /home/ec2-user
-          sudo -u ec2-user git clone https://github.com/allench28/bda001.git
-          cd bda001
-          
-          # Setup Python virtual environment
-          sudo -u ec2-user python3 -m venv .venv
-          sudo -u ec2-user bash -c 'source .venv/bin/activate && pip install -r requirements.txt'
-          
-          # Create deployment script
-          cat > /home/ec2-user/deploy.sh << 'EOF'
-          #!/bin/bash
-          cd /home/ec2-user/bda001
-          source .venv/bin/activate
-          ./deploy_auto.sh
-          EOF
-          
-          chmod +x /home/ec2-user/deploy.sh
-          chown ec2-user:ec2-user /home/ec2-user/deploy.sh
-          
-          # Create cleanup script
-          cat > /home/ec2-user/cleanup.sh << 'EOF'
-          #!/bin/bash
-          cd /home/ec2-user/bda001
-          source .venv/bin/activate
-          ./cleanup.sh
-          EOF
-          
-          chmod +x /home/ec2-user/cleanup.sh
-          chown ec2-user:ec2-user /home/ec2-user/cleanup.sh
-          
-          # Create README
-          cat > /home/ec2-user/README.txt << 'EOF'
-          CDK Deployment Instance Ready!
-          
-          To deploy the CDK stacks:
-          1. SSH into this instance
-          2. Run: ./deploy.sh
-          
-          To cleanup all resources:
-          1. Run: ./cleanup.sh
-          
-          Manual deployment:
-          cd bda001
-          source .venv/bin/activate
-          ./deploy_auto.sh
-          EOF
-          
-          chown ec2-user:ec2-user /home/ec2-user/README.txt
-          
-          echo "Setup complete! Instance ready for CDK deployment."
+          echo "Package installation complete! Ready for git clone and deployment."
 
 Outputs:
   InstanceId:
