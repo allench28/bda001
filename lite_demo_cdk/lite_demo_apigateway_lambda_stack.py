@@ -52,13 +52,11 @@ class LiteDemoApiGatewayLambdaStack(Stack):
         # Import Lambda Layers - try SSM first, fallback to empty list
         layers = []
         try:
-            LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(
-                self, 'LambdaBaseLayer', 
-                ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
-            )
-            layers.append(LambdaBaseLayer)
+            layer_arn = ssm.StringParameter.from_string_parameter_name(self, 'LambdaBaseLayerArn', 'AAP-LambdaBaseLayerArn').string_value
+            if layer_arn and layer_arn.startswith('arn:aws:lambda:'):
+                LambdaBaseLayer = lambda_.LayerVersion.from_layer_version_arn(self, 'LambdaBaseLayer', layer_arn)
+                layers.append(LambdaBaseLayer)
         except:
-            # Fallback: No custom layer
             pass
 
         # Use AWS managed pandas layer (available in most regions)
