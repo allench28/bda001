@@ -5,6 +5,9 @@
 
 set -e
 
+# Change to script directory
+cd "$(dirname "$0")"
+
 echo "🚀 Auto-Detecting AWS Configuration"
 echo "===================================="
 
@@ -61,7 +64,12 @@ aws ssm put-parameter \
 
 # Build frontend
 echo "🎨 Building frontend..."
-./build-frontend.sh
+if [ -x "./build-frontend.sh" ]; then
+    ./build-frontend.sh
+else
+    chmod +x build-frontend.sh
+    ./build-frontend.sh
+fi
 
 # Deploy stacks
 echo "📦 Deploying stacks..."
@@ -74,10 +82,18 @@ echo ""
 # Get outputs
 echo "📋 Your Deployment:"
 API_URL=$(aws ssm get-parameter --name "lite-demo-api-url-gw" --region $REGION --query "Parameter.Value" --output text 2>/dev/null || echo "Not available yet")
+S3_BUCKET=$(aws ssm get-parameter --name "/${PROJECT_NAME}/LiteDemo/S3BucketName" --region $REGION --query "Parameter.Value" --output text 2>/dev/null || echo "Not available yet")
+SNS_TOPIC=$(aws ssm get-parameter --name "/${PROJECT_NAME}/LiteDemo/SNSTopicArn" --region $REGION --query "Parameter.Value" --output text 2>/dev/null || echo "Not available yet")
+
 echo "🌐 API Gateway URL: $API_URL"
+echo "🪣 S3 Bucket: $S3_BUCKET"
+echo "📧 SNS Topic: $SNS_TOPIC"
 
 echo ""
 echo "🔧 Next Steps:"
-echo "1. Test API: python test_api.py $API_URL"
-echo "2. Add SNS email subscription in AWS Console"
-echo "3. Upload test documents to trigger processing"
+echo "1. Subscribe to SNS topic for notifications:"
+echo "   aws sns subscribe --topic-arn $SNS_TOPIC --protocol email --notification-endpoint your-email@example.com --region $REGION"
+echo "2. Upload test document to trigger processing:"
+echo "   Upload PDF to: s3://$S3_BUCKET/input/{documentId}/file.pdf"
+echo "3. Check CloudWatch Logs for Lambda execution details"
+echo "4. Access frontend (if deployed): Check CloudFront URL in stack outputs"
