@@ -1,14 +1,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EC2 instance for CDK deployment with required IAM permissions'
+Description: 'EC2 instance for CDK deployment with required IAM permissions (us-east-1 only)'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Configuration"
+        Parameters:
+          - KeyPairName
 
 Parameters:
-  InstanceType:
-    Type: String
-    Default: t3.medium
-    Description: EC2 instance type
-    AllowedValues:
-      - t3.small
-  
   KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: EC2 Key Pair for SSH access (optional)
@@ -85,7 +86,7 @@ Resources:
   CDKDeploymentInstance:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: !Ref InstanceType
+      InstanceType: t3.small
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref CDKDeploymentInstanceProfile
       SecurityGroupIds:
